@@ -1,0 +1,22 @@
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: "ghcr.io/home-assistant/home-assistant:stable"
+    networks:
+      - proxy
+    volumes:
+      - /config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+    restart: unless-stopped
+    privileged: true
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.homeassistant.rule=Host(`home-assistant.doudou.house`)"
+      - "traefik.http.routers.homeassistant.entrypoints=websecure"
+      - "traefik.http.routers.homeassistant.tls.certresolver=leresolver"
+      # - "traefik.http.services.homeassistant.loadbalancer.server.port=8123"
+
+networks:
+  proxy:
+    external: true

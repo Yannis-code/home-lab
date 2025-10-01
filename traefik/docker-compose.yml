@@ -1,53 +1,1 @@
-version: "3.3"
-
-services:
-  traefik:
-    container_name: traefik
-    image: "traefik:v2.2.8"
-    command:
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --providers.docker
-      - --log.level=DEBUG
-      - --certificatesresolvers.leresolver.acme.httpchallenge=true
-      - --certificatesresolvers.leresolver.acme.email=your-email #Set your email address here, is for the generation of SSL certificates with Let's Encrypt. 
-      - --certificatesresolvers.leresolver.acme.storage=./acme.json
-      - --certificatesresolvers.leresolver.acme.httpchallenge.entrypoint=web
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "./acme.json:/acme.json"
-    labels:
-      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
-      - "traefik.http.routers.http-catchall.entrypoints=web"
-      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-
-  portainer:
-    image: portainer/portainer-ce:2.0.0
-    command: -H unix:///var/run/docker.sock
-    restart: always
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
-    labels:
-      # Frontend
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`portainer.yourdomain.com`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.services.frontend.loadbalancer.server.port=9000"
-      - "traefik.http.routers.frontend.service=frontend"
-      - "traefik.http.routers.frontend.tls.certresolver=leresolver"
-      
-      # Edge
-      - "traefik.http.routers.edge.rule=Host(`edge.yourdomain.com`)"
-      - "traefik.http.routers.edge.entrypoints=websecure"
-      - "traefik.http.services.edge.loadbalancer.server.port=8000"
-      - "traefik.http.routers.edge.service=edge"
-      - "traefik.http.routers.edge.tls.certresolver=leresolver"
-
-
-volumes:
-  portainer_data:
+services:  traefik:    container_name: traefik    image: "traefik:latest"    restart: always    networks:      - proxy    command:      # Entrypoints HTTP + HTTPS      - "--entrypoints.web.address=:80"      - "--entrypoints.websecure.address=:443"      # Providers      - "--providers.docker"      - "--providers.docker.exposedbydefault=false"      - "--providers.docker.network=proxy"      - "--log.level=DEBUG"      # API & Dashboard      - "--api.dashboard=true"      - "--api.insecure=false"      # Let's Encrypt (resolver ACME)      - "--certificatesresolvers.leresolver.acme.httpchallenge=true"      - "--certificatesresolvers.leresolver.acme.httpchallenge.entrypoint=web"      - "--certificatesresolvers.leresolver.acme.email=yannis.roche.12@gmail.com"      - "--certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json"      # Redirection globale HTTP -> HTTPS      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"    ports:      - "80:80"      - "443:443"    volumes:      - "/var/run/docker.sock:/var/run/docker.sock:ro"      - "letsencrypt:/letsencrypt"    labels:      - "traefik.enable=true"      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"      - "traefik.http.routers.http-catchall.entrypoints=web"      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"      # Dashboard en HTTPS      - "traefik.http.routers.dashboard.rule=Host(`traefik.doudou.house`)"      - "traefik.http.routers.dashboard.entrypoints=websecure"      - "traefik.http.routers.dashboard.tls.certresolver=leresolver"      - "traefik.http.routers.dashboard.service=api@internal"volumes:  letsencrypt:networks:  proxy:    external: true

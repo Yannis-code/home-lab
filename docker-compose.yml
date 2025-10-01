@@ -1,0 +1,1 @@
+include:  - ./traefik/docker-compose.yml  - ./home-assistant/docker-compose.yamlnetworks:  proxy:    name: proxy
