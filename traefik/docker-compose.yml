@@ -1,1 +1,66 @@
-services:  traefik:    container_name: traefik    image: "traefik:latest"    restart: always    networks:      - proxy    command:      # Entrypoints HTTP + HTTPS      - "--entrypoints.web.address=:80"      - "--entrypoints.websecure.address=:443"      # Providers      - "--providers.docker"      - "--providers.docker.exposedbydefault=false"      - "--providers.docker.network=proxy"      - "--log.level=DEBUG"      # API & Dashboard      - "--api.dashboard=true"      - "--api.insecure=false"      # Let's Encrypt (resolver ACME)      - "--certificatesresolvers.leresolver.acme.httpchallenge=true"      - "--certificatesresolvers.leresolver.acme.httpchallenge.entrypoint=web"      - "--certificatesresolvers.leresolver.acme.email=yannis.roche.12@gmail.com"      - "--certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json"      # Redirection globale HTTP -> HTTPS      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"    ports:      - "80:80"      - "443:443"    volumes:      - "/var/run/docker.sock:/var/run/docker.sock:ro"      - "letsencrypt:/letsencrypt"    labels:      - "traefik.enable=true"      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"      - "traefik.http.routers.http-catchall.entrypoints=web"      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"      # Dashboard en HTTPS      - "traefik.http.routers.dashboard.rule=Host(`traefik.doudou.house`)"      - "traefik.http.routers.dashboard.entrypoints=websecure"      - "traefik.http.routers.dashboard.tls.certresolver=leresolver"      - "traefik.http.routers.dashboard.service=api@internal"      # Home Assistant redirigé vers 192.168.1.66:8123      - "traefik.http.routers.homeassistant.rule=Host(`home-assistant.doudou.house`)"      - "traefik.http.routers.homeassistant.entrypoints=websecure"      - "traefik.http.routers.homeassistant.tls.certresolver=leresolver"      - "traefik.http.services.homeassistant.loadbalancer.server.url=http://192.168.1.66:8123"volumes:  letsencrypt:networks:  proxy:    external: true
+services:
+  traefik:
+    container_name: traefik
+    image: "traefik:latest"
+    restart: always
+    networks:
+      - proxy
+    command:
+      # Entrypoints HTTP + HTTPS
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+
+      # Providers
+      - "--providers.docker"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=proxy"
+      - "--log.level=DEBUG"
+
+      # API & Dashboard
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+
+      # Let's Encrypt (resolver ACME)
+      - "--certificatesresolvers.leresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.leresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.leresolver.acme.email=yannis.roche.12@gmail.com"
+      - "--certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json"
+
+      # Redirection globale HTTP -> HTTPS
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "letsencrypt:/letsencrypt"
+
+    labels:
+      - "traefik.enable=true"
+
+      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+
+      # Dashboard en HTTPS
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.doudou.house`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls.certresolver=leresolver"
+      - "traefik.http.routers.dashboard.service=api@internal"
+
+      # Home Assistant redirigé vers 192.168.1.66:8123
+      - "traefik.http.routers.homeassistant.rule=Host(`home-assistant.doudou.house`)"
+      - "traefik.http.routers.homeassistant.entrypoints=websecure"
+      - "traefik.http.routers.homeassistant.tls.certresolver=leresolver"
+      - "traefik.http.services.homeassistant.loadbalancer.server.url=http://192.168.1.66:8123"
+
+volumes:
+  letsencrypt:
+  

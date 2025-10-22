@@ -1,1 +1,10 @@
-include:  - ./traefik/docker-compose.ymlnetworks:  proxy:    name: proxy
+include:
+  - ./traefik/docker-compose.yml
+    
+#networks:
+  #proxy:
+    #name: proxy
+
+networks:
+  proxy:
+    external: true
