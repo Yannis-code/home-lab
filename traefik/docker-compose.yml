@@ -54,6 +54,9 @@ services:
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.tls.certresolver=leresolver"
       - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=yannis:$apr1$BhOd6bst$J74h75NLJJh3Bek1EYNLv1"
+      # echo -n "user:$(openssl passwd -apr1 'password')"
 
       # Home Assistant redirigé vers 192.168.1.66:8123
       - "traefik.http.routers.homeassistant.rule=Host(`home-assistant.doudou.house`)"
@@ -64,3 +67,4 @@ services:
 volumes:
   letsencrypt:
   
+
