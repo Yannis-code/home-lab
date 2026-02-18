@@ -1,7 +1,7 @@
 services:
   traefik:
     container_name: traefik
-    image: "traefik:latest"
+    image: "traefik:3.6.8"
     restart: always
     pull_policy: always
     networks:
