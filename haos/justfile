@@ -1,0 +1,16 @@
+set shell := ["bash", "-cu"]
+
+default:
+	@just --list
+
+install:
+	sudo ./home-assistant-kvm.sh install
+
+revert:
+	sudo ./home-assistant-kvm.sh revert
+
+status:
+	sudo ./home-assistant-kvm.sh status
+
+ip:
+	./home-assistant-kvm.sh ip

@@ -15,6 +15,7 @@ services:
       - "--providers.docker"
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=proxy"
+      - "--serversTransport.insecureSkipVerify=true"
       - "--log.level=DEBUG"
 
       # API & Dashboard
@@ -46,6 +47,7 @@ services:
 
       - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
       - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.service=noop@internal"
 
       - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
 
@@ -60,11 +62,20 @@ services:
       - "traefik.http.middlewares.auth.basicauth.usersfile=/etc/traefik/.htpasswd"
       # echo -n "user:$(openssl passwd -apr1 'password') >> .htpasswd"
       
-      # Home Assistant redirigé vers 192.168.1.66:8123
+      # Home Assistant redirigé vers 192.168.150.10:8123
       - "traefik.http.routers.homeassistant.rule=Host(`home-assistant.doudou.house`)"
       - "traefik.http.routers.homeassistant.entrypoints=websecure"
       - "traefik.http.routers.homeassistant.tls.certresolver=leresolver"
-      - "traefik.http.services.homeassistant.loadbalancer.server.url=http://192.168.1.66:8123"
+      - "traefik.http.routers.homeassistant.service=homeassistant"
+      - "traefik.http.services.homeassistant.loadbalancer.server.url=http://192.168.150.10:8123"
+      - "traefik.http.services.homeassistant.loadbalancer.passhostheader=false"
+      
+      # Cockpit redirigé vers 192.168.1.152:9090
+      - "traefik.http.routers.cockpit.rule=Host(`cockpit.doudou.house`)"
+      - "traefik.http.routers.cockpit.entrypoints=websecure"
+      - "traefik.http.routers.cockpit.tls.certresolver=leresolver"
+      - "traefik.http.routers.cockpit.service=cockpit"
+      - "traefik.http.services.cockpit.loadbalancer.server.url=https://192.168.1.152:9090"
 
 volumes:
   letsencrypt:

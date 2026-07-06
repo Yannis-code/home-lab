@@ -1,0 +1,13 @@
+set shell := ["bash", "-cu"]
+
+default:
+	@just --list
+
+install:
+	sudo ./cockpit-machines.sh install
+
+revert:
+	sudo ./cockpit-machines.sh revert
+
+status:
+	sudo ./cockpit-machines.sh status
