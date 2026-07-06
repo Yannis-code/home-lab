@@ -6,6 +6,8 @@ services:
     pull_policy: always
     networks:
       - proxy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command:
       # Entrypoints HTTP + HTTPS
       - "--entrypoints.web.address=:80"
@@ -60,11 +62,18 @@ services:
       - "traefik.http.middlewares.auth.basicauth.usersfile=/etc/traefik/.htpasswd"
       # echo -n "user:$(openssl passwd -apr1 'password') >> .htpasswd"
       
-      # Home Assistant redirigé vers 192.168.1.66:8123
+      # Home Assistant redirige vers la VM (IP bridge/LAN configurable)
       - "traefik.http.routers.homeassistant.rule=Host(`home-assistant.doudou.house`)"
       - "traefik.http.routers.homeassistant.entrypoints=websecure"
       - "traefik.http.routers.homeassistant.tls.certresolver=leresolver"
-      - "traefik.http.services.homeassistant.loadbalancer.server.url=http://192.168.1.66:8123"
+      - "traefik.http.services.homeassistant.loadbalancer.server.url=http://${HA_VM_IP:-192.168.1.66}:8123"
+
+      # Cockpit (host) proxifie via host-gateway vers 9090
+      - "traefik.http.routers.cockpit.rule=Host(`${COCKPIT_FQDN:-cockpit.doudou.house}`)"
+      - "traefik.http.routers.cockpit.entrypoints=websecure"
+      - "traefik.http.routers.cockpit.tls.certresolver=leresolver"
+      - "traefik.http.routers.cockpit.middlewares=auth"
+      - "traefik.http.services.cockpit.loadbalancer.server.url=http://host.docker.internal:${COCKPIT_PORT:-9090}"
 
 volumes:
   letsencrypt:
