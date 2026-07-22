@@ -1,1 +1,7 @@
 **/.htpasswd
+haos/iac/.terraform/
+haos/iac/.terraform.lock.hcl
+haos/state/terraform.tfstate
+haos/state/terraform.tfstate.backup
+haos/config/terraform.tfvars
+haos/iac/*.tfplan

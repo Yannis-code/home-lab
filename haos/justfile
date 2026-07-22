@@ -1,16 +1,39 @@
 set shell := ["bash", "-cu"]
 
+tf_dir := "./iac"
+tf_vars := "../config/terraform.tfvars"
+
 default:
 	@just --list
 
-install:
-	sudo ./home-assistant-kvm.sh install
+tf command:
+	@if command -v tofu >/dev/null 2>&1; then \
+	  tf_bin="$(command -v tofu)"; \
+	elif command -v terraform >/dev/null 2>&1; then \
+	  tf_bin="$(command -v terraform)"; \
+	elif [[ -x /snap/bin/tofu ]]; then \
+	  tf_bin="/snap/bin/tofu"; \
+	else \
+	  echo "OpenTofu/Terraform introuvable (installe tofu ou terraform)"; \
+	  exit 1; \
+	fi; \
+	if [[ "$(id -u)" -ne 0 ]]; then \
+	  sudo "$tf_bin" -chdir={{tf_dir}} {{command}}; \
+	else \
+	  "$tf_bin" -chdir={{tf_dir}} {{command}}; \
+	fi
 
-revert:
-	sudo ./home-assistant-kvm.sh revert
+init:
+	@just tf init
 
-status:
-	sudo ./home-assistant-kvm.sh status
+plan:
+	@just tf "plan -var-file={{tf_vars}}"
 
-ip:
-	./home-assistant-kvm.sh ip
+apply:
+	@just tf "apply -var-file={{tf_vars}}"
+
+destroy:
+	@just tf "destroy -var-file={{tf_vars}}"
+
+output:
+	@just tf output

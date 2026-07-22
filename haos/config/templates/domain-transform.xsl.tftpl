@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output method="xml" indent="yes"/>
+
+  <xsl:template match="@*|node()">
+    <xsl:copy>
+      <xsl:apply-templates select="@*|node()"/>
+    </xsl:copy>
+  </xsl:template>
+
+%{ if use_no_secboot ~}
+  <!-- Force no-secboot firmware loader for HAOS on aarch64 -->
+  <xsl:template match="domain/os/loader/text()">/usr/share/AAVMF/AAVMF_CODE.no-secboot.fd</xsl:template>
+
+  <!-- Use non-Microsoft NVRAM template -->
+  <xsl:template match="domain/os/nvram/@template">
+    <xsl:attribute name="template">/usr/share/AAVMF/AAVMF_VARS.fd</xsl:attribute>
+  </xsl:template>
+
+  <!-- Remove secure-boot/enrolled-keys flags injected by default firmware profile -->
+  <xsl:template match="domain/os/firmware/feature"/>
+%{ endif ~}
+
+%{ if host_usb_passthrough_enabled ~}
+%{ if host_usb_use_vendor_product ~}
+  <!-- Remove any existing matching USB hostdev entry to avoid duplicates -->
+  <xsl:template match="domain/devices/hostdev[@mode='subsystem'][@type='usb'][source/vendor/@id='${host_usb_vendor_id}'][source/product/@id='${host_usb_product_id}']"/>
+%{ else ~}
+  <!-- Remove any existing matching USB hostdev entry to avoid duplicates -->
+  <xsl:template match="domain/devices/hostdev[@mode='subsystem'][@type='usb'][source/address/@bus='${host_usb_bus_number}'][source/address/@device='${host_usb_device_number}']"/>
+%{ endif ~}
+
+  <!-- Remove any existing qemu-xhci controller to avoid duplicates -->
+  <xsl:template match="domain/devices/controller[@type='usb'][@model='qemu-xhci']"/>
+
+  <!-- Add USB controller and host USB passthrough device -->
+  <xsl:template match="domain/devices">
+    <xsl:copy>
+      <xsl:apply-templates select="@*|node()"/>
+      <controller type="usb" model="qemu-xhci"/>
+      <hostdev mode="subsystem" type="usb" managed="yes">
+        <source>
+%{ if host_usb_use_vendor_product ~}
+          <vendor id="${host_usb_vendor_id}"/>
+          <product id="${host_usb_product_id}"/>
+%{ else ~}
+          <address bus="${host_usb_bus_number}" device="${host_usb_device_number}"/>
+%{ endif ~}
+        </source>
+      </hostdev>
+    </xsl:copy>
+  </xsl:template>
+%{ endif ~}
+</xsl:stylesheet>

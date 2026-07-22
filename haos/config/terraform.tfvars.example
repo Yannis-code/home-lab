@@ -1,0 +1,28 @@
+# Copy this file to terraform.tfvars and adjust values if needed.
+
+libvirt_uri = "qemu:///system"
+
+vm_name         = "home-assistant"
+vm_description  = "Home Assistant OS"
+vm_memory_mb    = 8192
+vm_vcpus        = 2
+vm_disk_size_bytes = 34359738368
+vm_mac          = "52:54:00:ab:cd:10"
+vm_ip           = "192.168.150.10"
+
+network_name   = "ha-net"
+network_bridge = "virbr-ha"
+network_domain = "ha.local"
+network_cidr   = "192.168.150.0/24"
+
+storage_pool_name = "home-assistant"
+storage_pool_path = "/var/lib/libvirt/images/home-assistant"
+
+# Leave empty to auto-detect host arch using uname -m.
+domain_arch_override = ""
+
+host_usb_passthrough_enabled = true
+host_usb_bus_number          = 1
+host_usb_device_number       = 2
+host_usb_vendor_id           = "0x10c4"
+host_usb_product_id          = "0xea60"
