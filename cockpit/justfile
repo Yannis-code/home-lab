@@ -11,3 +11,15 @@ revert:
 
 status:
 	sudo ./cockpit-machines.sh status
+
+check:
+	sudo ./cockpit-machines.sh check
+
+doctor:
+	sudo ./cockpit-machines.sh doctor
+
+logs:
+	sudo ./cockpit-machines.sh logs
+
+url:
+	./cockpit-machines.sh url
