@@ -1,24 +1,46 @@
 # home-lab
 
-Command shortcuts are available at the repository root via `just`.
+This repository contains self-hosted infrastructure automation and runtime configuration.
 
-Cockpit shortcuts:
+## Components
 
-- `just cockpit` to list all cockpit commands
-- `just cockpit::init-config` to initialize the config file
-- `just cockpit::install` to install cockpit-machines
-- `just cockpit::revert` to revert cockpit-machines
-- `just cockpit::status` to check the status of cockpit-machines
-- `just cockpit::check` to check the configuration and environment
-- `just cockpit::doctor` to run a diagnostic check
-- `just cockpit::logs` to view the logs of cockpit-machines
-- `just cockpit::url` to get the URL for accessing cockpit-machines
+- `haos/`: Home Assistant OS on libvirt/KVM managed with OpenTofu/Terraform
+- `traefik/`: reverse proxy and TLS termination
+- `cockpit/`: cockpit-machines setup and diagnostics
 
-HAOS shortcuts:
+## Global network topology
 
-- `just haos` to list all haos commands
-- `just haos::init` to initialize the Terraform configuration
-- `just haos::plan` to show the Terraform plan
-- `just haos::apply` to apply the Terraform configuration
-- `just haos::destroy` to destroy the Terraform-managed infrastructure
-- `just haos::output` to show the Terraform outputs
+```mermaid
+flowchart LR
+	Internet((Internet)) --> DNS[Cloudflare DNS]
+	DNS --> TraefikHost[Traefik on host\n192.168.1.55]
+	TraefikHost --> HAProxy[HA backend\n192.168.150.10:8123]
+	HAProxy --> HAOS[HAOS VM]
+	HAOS --> LAN[LAN IP via eth0\n192.168.1.x]
+	HAOS --> NAT[NAT mgmt via ha-net\n192.168.150.10]
+```
+
+## Commands
+
+Use `just` at repository root.
+
+Cockpit:
+
+- `just cockpit`
+- `just cockpit::init-config`
+- `just cockpit::install`
+- `just cockpit::revert`
+- `just cockpit::status`
+- `just cockpit::check`
+- `just cockpit::doctor`
+- `just cockpit::logs`
+- `just cockpit::url`
+
+HAOS:
+
+- `just haos`
+- `just haos::init`
+- `just haos::plan`
+- `just haos::apply`
+- `just haos::destroy`
+- `just haos::output`

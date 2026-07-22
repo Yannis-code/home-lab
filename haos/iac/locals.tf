@@ -25,6 +25,8 @@ locals {
   selected_image_url = try(local.image_urls[0], null)
   vm_storage_dir     = "${var.storage_pool_path}/${var.vm_name}"
   extracted_image    = "${local.vm_storage_dir}/haos-${local.normalized_host_arch}.qcow2"
+  nat_network_enabled = var.network_mode == "nat" || var.enable_management_nat_interface
+  nat_interface_mac   = var.network_mode == "nat" ? var.vm_mac : var.management_vm_mac
   domain_xslt = templatefile("${path.module}/../config/templates/domain-transform.xsl.tftpl", {
     use_no_secboot               = local.normalized_host_arch == "aarch64"
     host_usb_passthrough_enabled = var.host_usb_passthrough_enabled

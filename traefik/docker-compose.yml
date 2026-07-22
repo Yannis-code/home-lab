@@ -62,7 +62,7 @@ services:
       - "traefik.http.middlewares.auth.basicauth.usersfile=/etc/traefik/.htpasswd"
       # echo -n "user:$(openssl passwd -apr1 'password') >> .htpasswd"
       
-      # Home Assistant redirigé vers 192.168.150.10:8123
+      # Home Assistant redirige vers 192.168.150.10:8123 (NIC de management NAT)
       - "traefik.http.routers.homeassistant.rule=Host(`home-assistant.doudou.house`)"
       - "traefik.http.routers.homeassistant.entrypoints=websecure"
       - "traefik.http.routers.homeassistant.tls.certresolver=leresolver"

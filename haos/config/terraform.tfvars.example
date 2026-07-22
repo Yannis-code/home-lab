@@ -9,11 +9,15 @@ vm_vcpus        = 2
 vm_disk_size_bytes = 34359738368
 vm_mac          = "52:54:00:ab:cd:10"
 vm_ip           = "192.168.150.10"
+enable_management_nat_interface = true
+management_vm_mac = "52:54:00:ab:cd:11"
 
-network_name   = "ha-net"
-network_bridge = "virbr-ha"
-network_domain = "ha.local"
-network_cidr   = "192.168.150.0/24"
+network_mode          = "host-bridge"
+host_bridge_interface = "eth0"
+network_name          = "ha-net"
+network_bridge        = "virbr-ha"
+network_domain        = "ha.local"
+network_cidr          = "192.168.150.0/24"
 
 storage_pool_name = "home-assistant"
 storage_pool_path = "/var/lib/libvirt/images/home-assistant"
