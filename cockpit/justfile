@@ -1,25 +1,43 @@
 set shell := ["bash", "-cu"]
 
+cfg_file := "./config/cockpit-machines.conf"
+cfg_example := "./config/cockpit-machines.conf.example"
+
 default:
 	@just --list
 
+init-config:
+	@if [[ -f {{cfg_file}} ]]; then \
+	  echo "config already exists: {{cfg_file}}"; \
+	else \
+	  cp {{cfg_example}} {{cfg_file}}; \
+	  echo "created: {{cfg_file}}"; \
+	fi
+
+# Initialize the config file
 install:
-	sudo ./cockpit-machines.sh install
+	sudo COCKPIT_ENV_FILE={{cfg_file}} ./cockpit-machines.sh install
 
+# Install cockpit-machines
 revert:
-	sudo ./cockpit-machines.sh revert
+	sudo COCKPIT_ENV_FILE={{cfg_file}} ./cockpit-machines.sh revert
 
+# Check the status of cockpit-machines
 status:
-	sudo ./cockpit-machines.sh status
+	sudo COCKPIT_ENV_FILE={{cfg_file}} ./cockpit-machines.sh status
 
+# Check the configuration of cockpit-machines
 check:
-	sudo ./cockpit-machines.sh check
+	sudo COCKPIT_ENV_FILE={{cfg_file}} ./cockpit-machines.sh check
 
+# Run a diagnostic check
 doctor:
-	sudo ./cockpit-machines.sh doctor
+	sudo COCKPIT_ENV_FILE={{cfg_file}} ./cockpit-machines.sh doctor
 
+# View the logs of cockpit-machines
 logs:
-	sudo ./cockpit-machines.sh logs
+	sudo COCKPIT_ENV_FILE={{cfg_file}} ./cockpit-machines.sh logs
 
+# Get the URL of for accessing cockpit-machines
 url:
-	./cockpit-machines.sh url
+	COCKPIT_ENV_FILE={{cfg_file}} ./cockpit-machines.sh url

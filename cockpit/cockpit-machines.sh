@@ -2,6 +2,14 @@
 
 set -Eeuo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${COCKPIT_ENV_FILE:-$SCRIPT_DIR/config/cockpit-machines.conf}"
+
+if [[ -f "$ENV_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+fi
+
 COCKPIT_PACKAGE="${COCKPIT_PACKAGE:-cockpit}"
 COCKPIT_MACHINES_PACKAGE="${COCKPIT_MACHINES_PACKAGE:-cockpit-machines}"
 COCKPIT_SERVICE="${COCKPIT_SERVICE:-cockpit.socket}"
@@ -9,6 +17,7 @@ COCKPIT_PORT="${COCKPIT_PORT:-9090}"
 COCKPIT_LOG_LINES="${COCKPIT_LOG_LINES:-120}"
 COCKPIT_MANAGE_FIREWALL="${COCKPIT_MANAGE_FIREWALL:-false}"
 COCKPIT_PURGE="${COCKPIT_PURGE:-false}"
+COCKPIT_STATE_DIR="${COCKPIT_STATE_DIR:-$SCRIPT_DIR/state}"
 
 log() {
   printf '[cockpit-machines] %s\n' "$*"
@@ -276,6 +285,8 @@ logs_cockpit() {
 usage() {
   cat <<EOF
 Usage: $0 <install|revert|status|check|doctor|logs|url>
+
+Configuration file: $ENV_FILE
 EOF
 }
 

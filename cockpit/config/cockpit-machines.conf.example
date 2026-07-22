@@ -1,0 +1,15 @@
+# Cockpit package and service settings
+COCKPIT_PACKAGE=cockpit
+COCKPIT_MACHINES_PACKAGE=cockpit-machines
+COCKPIT_SERVICE=cockpit.socket
+COCKPIT_PORT=9090
+
+# Logs and cleanup behavior
+COCKPIT_LOG_LINES=120
+COCKPIT_PURGE=false
+
+# Set to true to manage ufw/firewalld rules automatically
+COCKPIT_MANAGE_FIREWALL=false
+
+# Optional custom state folder (default: ../state from script dir)
+# COCKPIT_STATE_DIR=/path/to/state

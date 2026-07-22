@@ -3,9 +3,11 @@ set shell := ["bash", "-cu"]
 tf_dir := "./iac"
 tf_vars := "../config/terraform.tfvars"
 
+# List of available haos commands
 default:
 	@just --list
 
+[private]
 tf command:
 	@if command -v tofu >/dev/null 2>&1; then \
 	  tf_bin="$(command -v tofu)"; \
@@ -23,17 +25,22 @@ tf command:
 	  "$tf_bin" -chdir={{tf_dir}} {{command}}; \
 	fi
 
+# Initialize the Terraform configuration
 init:
 	@just tf init
 
+# Show the Terraform plan
 plan:
 	@just tf "plan -var-file={{tf_vars}}"
 
+# Apply the Terraform configuration
 apply:
 	@just tf "apply -var-file={{tf_vars}}"
 
+# Destroy the Terraform-managed infrastructure
 destroy:
 	@just tf "destroy -var-file={{tf_vars}}"
 
+# Show the Terraform outputs
 output:
 	@just tf output
