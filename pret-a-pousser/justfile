@@ -1,0 +1,129 @@
+set shell := ["bash", "-cu"]
+
+project_dir := justfile_directory()
+image := "potager-ble:latest"
+uv_image := "ghcr.io/astral-sh/uv:python3.12-bookworm-slim"
+default_name := "Modulo2"
+default_adapter := "hci1"
+default_topic := "potager/modulo2/set"
+default_host := "127.0.0.1"
+default_port := "1883"
+
+# List of available commands
+default:
+	@just --list
+
+[private]
+uv command:
+	@if command -v uv >/dev/null 2>&1; then \
+	  cd "{{project_dir}}" && uv {{command}}; \
+	else \
+	  docker run --rm -v "{{project_dir}}:/app" -w /app {{uv_image}} uv {{command}}; \
+	fi
+
+[private]
+py command:
+	@if command -v python3 >/dev/null 2>&1; then \
+	  cd "{{project_dir}}" && python3 {{command}}; \
+	else \
+	  echo "python3 introuvable sur l'hote"; \
+	  exit 1; \
+	fi
+
+# Generate or update uv.lock
+lock:
+	@just uv lock
+
+# Install dependencies into local virtual environment
+sync:
+	@if [[ -f uv.lock ]]; then \
+	  just uv "sync --frozen --no-dev"; \
+	else \
+	  just uv lock; \
+	  just uv "sync --frozen --no-dev"; \
+	fi
+
+# Run bridge in continuous MQTT daemon mode
+run-daemon name=default_name adapter=default_adapter:
+	@just py "potager_ble.py --name '{{name}}' --adapter '{{adapter}}' daemon"
+
+# Run bridge in daemon mode with debug logs
+run-daemon-debug name=default_name adapter=default_adapter:
+	@just py "potager_ble.py --name '{{name}}' --adapter '{{adapter}}' --debug daemon"
+
+# Send command locally without MQTT (one-shot BLE)
+send action="on" name=default_name adapter=default_adapter:
+	@just py "potager_ble.py --name '{{name}}' --adapter '{{adapter}}' send {{action}}"
+
+# Send command locally without MQTT and with debug logs
+send-debug action="on" name=default_name adapter=default_adapter:
+	@just py "potager_ble.py --name '{{name}}' --adapter '{{adapter}}' --debug send {{action}}"
+
+# Run command locally with explicit BLE address (skip scan)
+run-address action="on" address="" adapter=default_adapter:
+	@if [[ -z "{{address}}" ]]; then \
+	  echo "address requis: just run-address on EA:81:4A:8C:98:0C hci1"; \
+	  exit 1; \
+	fi
+	@just py "potager_ble.py --address '{{address}}' --adapter '{{adapter}}' send {{action}}"
+
+# Build the production image
+docker-build:
+	docker build -t {{image}} "{{project_dir}}"
+
+# Run container once with BLE scan by name
+docker-run action="on" name=default_name adapter=default_adapter:
+	docker run --rm --net=host --privileged -v /var/run/dbus:/var/run/dbus -v "{{project_dir}}/state:/data" {{image}} --adapter "{{adapter}}" send {{action}} --name "{{name}}"
+
+# Run container once with explicit BLE address
+docker-run-address action="on" address="" adapter=default_adapter:
+	@if [[ -z "{{address}}" ]]; then \
+	  echo "address requis: just docker-run-address on EA:81:4A:8C:98:0C hci1"; \
+	  exit 1; \
+	fi
+	docker run --rm --net=host --privileged -v /var/run/dbus:/var/run/dbus -v "{{project_dir}}/state:/data" {{image}} --adapter "{{adapter}}" send {{action}} --address "{{address}}"
+
+# Start compose stack (build included)
+compose-up:
+	docker compose -f "{{project_dir}}/docker-compose.yml" up -d --build
+
+# Stop compose stack
+compose-down:
+	docker compose -f "{{project_dir}}/docker-compose.yml" down
+
+# Follow service logs
+compose-logs:
+	docker compose -f "{{project_dir}}/docker-compose.yml" logs -f potager-ble
+
+# Restart service container
+compose-restart:
+	docker compose -f "{{project_dir}}/docker-compose.yml" restart potager-ble
+
+# Publish one MQTT payload using the app image (no local mosquitto_pub needed)
+[private]
+mqtt-pub payload host=default_host port=default_port topic=default_topic username="" password="":
+	@host_val="{{host}}"; \
+	port_val="{{port}}"; \
+	topic_val="{{topic}}"; \
+	username_val="{{username}}"; \
+	password_val="{{password}}"; \
+	host_val="${host_val#host=}"; \
+	port_val="${port_val#port=}"; \
+	topic_val="${topic_val#topic=}"; \
+	username_val="${username_val#username=}"; \
+	password_val="${password_val#password=}"; \
+	if [[ -n "${username_val}" ]]; then \
+	  docker run --rm --network host --entrypoint python {{image}} -c \
+	    "from paho.mqtt.publish import single; single('${topic_val}', payload='{{payload}}', hostname='${host_val}', port=int('${port_val}'), qos=1, retain=True, auth={'username':'${username_val}','password':'${password_val}'})"; \
+	else \
+	  docker run --rm --network host --entrypoint python {{image}} -c \
+	    "from paho.mqtt.publish import single; single('${topic_val}', payload='{{payload}}', hostname='${host_val}', port=int('${port_val}'), qos=1, retain=True)"; \
+	fi
+
+# Publish ON via MQTT broker
+mqtt-on host=default_host username="" password="":
+	@just mqtt-pub ON {{host}} {{default_port}} {{default_topic}} "{{username}}" "{{password}}"
+
+# Publish OFF via MQTT broker
+mqtt-off host=default_host username="" password="":
+	@just mqtt-pub OFF {{host}} {{default_port}} {{default_topic}} "{{username}}" "{{password}}"

@@ -6,3 +6,4 @@ haos/state/terraform.tfstate.backup
 haos/config/terraform.tfvars
 haos/iac/*.tfplan
 cockpit/config/cockpit-machines.conf
+.env
