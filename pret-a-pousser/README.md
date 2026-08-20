@@ -221,6 +221,12 @@ Stop stack:
 just compose-down
 ```
 
+MQTT web client:
+
+- Service: `mqtt-web-client` in `docker-compose.yml`
+- URL: `https://<MQTT_WEB_HOST>` (default `https://mqtt.doudou.house`)
+- Protection: Traefik basic auth middleware `auth@docker` (same password file as Traefik dashboard)
+
 ## 8) Notes
 
 - No `sudo` is used in scripts/recipes.

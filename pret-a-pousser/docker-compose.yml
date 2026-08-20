@@ -29,3 +29,23 @@ services:
       - ./state:/data
     command:
       - "daemon"
+
+  mqtt-web-client:
+    image: hivemq/mqtt-web-client:latest
+    restart: unless-stopped
+    networks:
+      - proxy
+    expose:
+      - "80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.potager-mqtt-web.rule=Host(`${MQTT_WEB_HOST:-mqtt.doudou.house}`)"
+      - "traefik.http.routers.potager-mqtt-web.entrypoints=websecure"
+      - "traefik.http.routers.potager-mqtt-web.tls.certresolver=leresolver"
+      - "traefik.http.routers.potager-mqtt-web.middlewares=auth@docker"
+      - "traefik.http.services.potager-mqtt-web.loadbalancer.server.port=80"
+
+networks:
+  proxy:
+    external: true
