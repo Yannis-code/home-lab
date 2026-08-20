@@ -4,7 +4,7 @@ project_dir := justfile_directory()
 image := "potager-ble:latest"
 uv_image := "ghcr.io/astral-sh/uv:python3.12-bookworm-slim"
 default_name := "Modulo2"
-default_adapter := "hci1"
+default_adapter := "hci0"
 default_topic := "potager/modulo2/set"
 default_host := "127.0.0.1"
 default_port := "1883"
@@ -24,7 +24,12 @@ uv command:
 [private]
 py command:
 	@if command -v python3 >/dev/null 2>&1; then \
-	  cd "{{project_dir}}" && python3 {{command}}; \
+	  cd "{{project_dir}}"; \
+	  if [[ -x .venv/bin/python ]]; then \
+	    .venv/bin/python {{command}}; \
+	  else \
+	    python3 {{command}}; \
+	  fi; \
 	else \
 	  echo "python3 introuvable sur l'hote"; \
 	  exit 1; \
@@ -43,21 +48,109 @@ sync:
 	  just uv "sync --frozen --no-dev"; \
 	fi
 
+# Diagnose local BLE runtime, Python modules, and adapter visibility
+doctor adapter=default_adapter name=default_name:
+	@cd "{{project_dir}}"; \
+	set +e; \
+	echo "== project =="; \
+	echo "dir: $(pwd)"; \
+	echo "user: $(id -un) uid=$(id -u)"; \
+	echo; \
+	echo "== python =="; \
+	if [[ -x .venv/bin/python ]]; then \
+	  PY=.venv/bin/python; \
+	else \
+	  PY=python3; \
+	fi; \
+	echo "interpreter: $PY -> $($PY -c 'import sys; print(sys.executable)' 2>/dev/null || echo unavailable)"; \
+	$PY -c "import sys; print('version:', sys.version.split()[0])" 2>/dev/null || true; \
+	$PY -c "import bleak; print('bleak: OK')" 2>/dev/null || echo "bleak: MISSING"; \
+	$PY -c "import paho.mqtt.client as _; print('paho-mqtt: OK')" 2>/dev/null || echo "paho-mqtt: MISSING (only needed for daemon)"; \
+	echo; \
+	echo "== bluez tools =="; \
+	command -v bluetoothctl >/dev/null 2>&1 && echo "bluetoothctl: OK" || echo "bluetoothctl: MISSING"; \
+	command -v btmgmt >/dev/null 2>&1 && echo "btmgmt: OK" || echo "btmgmt: MISSING"; \
+	echo; \
+	echo "== bluetooth service =="; \
+	systemctl is-active bluetooth 2>/dev/null || echo "bluetooth service: unknown/inactive"; \
+	echo; \
+	echo "== adapters =="; \
+	bluetoothctl list 2>/dev/null || echo "impossible de lister les adaptateurs"; \
+	echo; \
+	echo "== selected adapter =="; \
+	if bluetoothctl list 2>/dev/null | grep -q "{{adapter}}"; then \
+	  echo "adapter {{adapter}}: FOUND"; \
+	else \
+	  echo "adapter {{adapter}}: NOT FOUND"; \
+	fi; \
+	echo; \
+	echo "== scan {{name}} (8s) =="; \
+	scan_out="${TMPDIR:-/tmp}/.modulo_scan.out"; \
+	timeout 10s bluetoothctl --timeout 8 scan on >"$scan_out" 2>&1 || true; \
+	if grep -qi "{{name}}" "$scan_out"; then \
+	  echo "device {{name}}: FOUND"; \
+	  grep -Ei "NEW|{{name}}" "$scan_out" | tail -n 10; \
+	else \
+	  echo "device {{name}}: NOT FOUND during short scan"; \
+	fi; \
+	echo; \
+	echo "doctor done"
+
 # Run bridge in continuous MQTT daemon mode
 run-daemon name=default_name adapter=default_adapter:
-	@just py "potager_ble.py --name '{{name}}' --adapter '{{adapter}}' daemon"
+	@just py "src/potager_ble.py --name '{{name}}' --adapter '{{adapter}}' daemon"
 
 # Run bridge in daemon mode with debug logs
 run-daemon-debug name=default_name adapter=default_adapter:
-	@just py "potager_ble.py --name '{{name}}' --adapter '{{adapter}}' --debug daemon"
+	@just py "src/potager_ble.py --name '{{name}}' --adapter '{{adapter}}' --debug daemon"
 
 # Send command locally without MQTT (one-shot BLE)
 send action="on" name=default_name adapter=default_adapter:
-	@just py "potager_ble.py --name '{{name}}' --adapter '{{adapter}}' send {{action}}"
+	@just py "src/potager_ble.py --name '{{name}}' --adapter '{{adapter}}' send {{action}}"
 
 # Send command locally without MQTT and with debug logs
 send-debug action="on" name=default_name adapter=default_adapter:
-	@just py "potager_ble.py --name '{{name}}' --adapter '{{adapter}}' --debug send {{action}}"
+	@just py "src/potager_ble.py --name '{{name}}' --adapter '{{adapter}}' --debug send {{action}}"
+
+# Set both channels intensity using preset names (off|photo|faible|printemps|ete)
+set-intensity preset="printemps" name=default_name adapter=default_adapter:
+	@p="{{preset}}"; \
+	p="${p#preset=}"; \
+	just py "src/potager_ble.py --name '{{name}}' --adapter '{{adapter}}' set --left-intensity '${p}' --right-intensity '${p}'"
+
+# Set cycle schedule for both channels
+set-cycle start="08:00" end="22:00" name=default_name adapter=default_adapter:
+	@s="{{start}}"; \
+	e="{{end}}"; \
+	s="${s#start=}"; \
+	e="${e#end=}"; \
+	just py "src/potager_ble.py --name '{{name}}' --adapter '{{adapter}}' set --left-start '${s}' --right-start '${s}' --left-end '${e}' --right-end '${e}'"
+
+# Set internal clock to current local time
+set-clock-now name=default_name adapter=default_adapter:
+	@just py "src/potager_ble.py --name '{{name}}' --adapter '{{adapter}}' set --clock-now"
+
+# Save current auto-mode channels to JSON snapshot
+auto-save file="" name=default_name adapter=default_adapter:
+	@f="{{file}}"; \
+	if [[ -n "$f" ]]; then \
+	  just py "src/potager_ble.py --name '{{name}}' --adapter '{{adapter}}' auto-save --auto-state-file '${f}'"; \
+	else \
+	  just py "src/potager_ble.py --name '{{name}}' --adapter '{{adapter}}' auto-save"; \
+	fi
+
+# Restore auto-mode channels from JSON snapshot
+auto-restore file="" use_saved_clock="0" name=default_name adapter=default_adapter:
+	@f="{{file}}"; \
+	u="{{use_saved_clock}}"; \
+	cmd="src/potager_ble.py --name '{{name}}' --adapter '{{adapter}}' auto-restore"; \
+	if [[ -n "$f" ]]; then \
+	  cmd="$cmd --auto-state-file '${f}'"; \
+	fi; \
+	if [[ "$u" == "1" || "$u" == "true" || "$u" == "yes" ]]; then \
+	  cmd="$cmd --use-saved-clock"; \
+	fi; \
+	just py "$cmd"
 
 # Run command locally with explicit BLE address (skip scan)
 run-address action="on" address="" adapter=default_adapter:
@@ -65,7 +158,7 @@ run-address action="on" address="" adapter=default_adapter:
 	  echo "address requis: just run-address on EA:81:4A:8C:98:0C hci1"; \
 	  exit 1; \
 	fi
-	@just py "potager_ble.py --address '{{address}}' --adapter '{{adapter}}' send {{action}}"
+	@just py "src/potager_ble.py --address '{{address}}' --adapter '{{adapter}}' send {{action}}"
 
 # Build the production image
 docker-build:

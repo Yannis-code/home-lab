@@ -1,0 +1,56 @@
+{
+  "device": {
+    "name": "Modulo2",
+    "service_uuid": "c9d9bff1-324c-4b79-bbaf-8a473e6540ec"
+  },
+  "characteristics": {
+    "clock": "c9d9bff2-324c-4b79-bbaf-8a473e6540ec",
+    "left_profile_param": "c9d9bff3-324c-4b79-bbaf-8a473e6540ec",
+    "right_profile_param": "c9d9bff4-324c-4b79-bbaf-8a473e6540ec",
+    "left_intensity": "c9d9bff5-324c-4b79-bbaf-8a473e6540ec",
+    "right_intensity": "c9d9bff6-324c-4b79-bbaf-8a473e6540ec",
+    "left_start": "c9d9bff7-324c-4b79-bbaf-8a473e6540ec",
+    "right_start": "c9d9bff8-324c-4b79-bbaf-8a473e6540ec",
+    "left_end": "c9d9bff9-324c-4b79-bbaf-8a473e6540ec",
+    "right_end": "c9d9bffa-324c-4b79-bbaf-8a473e6540ec",
+    "flags": "c9d9bffb-324c-4b79-bbaf-8a473e6540ec",
+    "reserved": "c9d9bffc-324c-4b79-bbaf-8a473e6540ec"
+  },
+  "intensity_presets": {
+    "off": 0,
+    "photo": 20,
+    "faible": 50,
+    "printemps": 75,
+    "ete": 100,
+    "on": 100
+  },
+  "encodings": {
+    "time_fields": "uint32_le_seconds_since_midnight"
+  },
+  "groups": {
+    "auto_snapshot": [
+      "clock",
+      "left_profile_param",
+      "right_profile_param",
+      "left_intensity",
+      "right_intensity",
+      "left_start",
+      "right_start",
+      "left_end",
+      "right_end",
+      "flags",
+      "reserved"
+    ],
+    "auto_restore": [
+      "left_profile_param",
+      "right_profile_param",
+      "left_intensity",
+      "right_intensity",
+      "left_start",
+      "right_start",
+      "left_end",
+      "right_end",
+      "reserved"
+    ]
+  }
+}

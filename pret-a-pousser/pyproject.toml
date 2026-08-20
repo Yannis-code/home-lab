@@ -9,7 +9,7 @@ dependencies = [
 ]
 
 [project.scripts]
-potager-ble = "potager_ble:main"
+potager-ble = "src.potager_ble:main"
 
 [build-system]
 requires = ["hatchling>=1.25.0"]

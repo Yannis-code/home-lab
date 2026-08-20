@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     fi
 
 # 2) Copy application code and re-sync in case project metadata changed.
-COPY potager_ble.py ./
+COPY src ./src
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable
 
@@ -34,8 +34,8 @@ RUN useradd --create-home --uid 10001 appuser
 WORKDIR /app
 
 COPY --from=builder /app/.venv /app/.venv
-COPY --from=builder /app/potager_ble.py /app/potager_ble.py
+COPY --from=builder /app/src /app/src
 
 USER appuser
 
-ENTRYPOINT ["python", "/app/potager_ble.py"]
+ENTRYPOINT ["python", "/app/src/potager_ble.py"]
