@@ -119,21 +119,30 @@ class SetChannelsInput:
     mirror_sides: bool = False
 
 
+def _mirror_right(left: str | None, right: str | None, mirror: bool) -> str | None:
+    if mirror and right is None:
+        return left
+    return right
+
+
+def _append_optional_write(
+    writes: list[tuple[str, bytearray]],
+    char_key: str,
+    value: str | None,
+    encoder,
+) -> None:
+    if value is None:
+        return
+    writes.append((CHAR_UUIDS[char_key], encoder(value)))
+
+
 def build_set_writes(cfg: SetChannelsInput) -> list[tuple[str, bytearray]]:
     left_intensity = cfg.left_intensity
-    right_intensity = cfg.right_intensity
+    right_intensity = _mirror_right(cfg.left_intensity, cfg.right_intensity, cfg.mirror_sides)
     left_start = cfg.left_start
-    right_start = cfg.right_start
+    right_start = _mirror_right(cfg.left_start, cfg.right_start, cfg.mirror_sides)
     left_end = cfg.left_end
-    right_end = cfg.right_end
-
-    if cfg.mirror_sides:
-        if right_intensity is None:
-            right_intensity = left_intensity
-        if right_start is None:
-            right_start = left_start
-        if right_end is None:
-            right_end = left_end
+    right_end = _mirror_right(cfg.left_end, cfg.right_end, cfg.mirror_sides)
 
     writes: list[tuple[str, bytearray]] = []
 
@@ -144,19 +153,26 @@ def build_set_writes(cfg: SetChannelsInput) -> list[tuple[str, bytearray]]:
     elif cfg.clock_seconds is not None:
         writes.append((CHAR_UUIDS["clock"], seconds_to_le32(cfg.clock_seconds)))
 
-    if left_intensity is not None:
-        writes.append((CHAR_UUIDS["left_intensity"], bytearray([resolve_intensity_value(left_intensity)])))
-    if right_intensity is not None:
-        writes.append((CHAR_UUIDS["right_intensity"], bytearray([resolve_intensity_value(right_intensity)])))
+    _append_optional_write(
+        writes,
+        "left_intensity",
+        left_intensity,
+        lambda raw: bytearray([resolve_intensity_value(raw)]),
+    )
+    _append_optional_write(
+        writes,
+        "right_intensity",
+        right_intensity,
+        lambda raw: bytearray([resolve_intensity_value(raw)]),
+    )
 
-    if left_start is not None:
-        writes.append((CHAR_UUIDS["left_start"], hhmm_to_le32(left_start)))
-    if right_start is not None:
-        writes.append((CHAR_UUIDS["right_start"], hhmm_to_le32(right_start)))
-    if left_end is not None:
-        writes.append((CHAR_UUIDS["left_end"], hhmm_to_le32(left_end)))
-    if right_end is not None:
-        writes.append((CHAR_UUIDS["right_end"], hhmm_to_le32(right_end)))
+    for char_key, value in (
+        ("left_start", left_start),
+        ("right_start", right_start),
+        ("left_end", left_end),
+        ("right_end", right_end),
+    ):
+        _append_optional_write(writes, char_key, value, hhmm_to_le32)
 
     if not writes:
         raise ValueError("Aucune valeur a ecrire. Fournir au moins un parametre --left-*/--right-* ou clock")
