@@ -10,42 +10,47 @@ services:
     restart: unless-stopped
     environment:
       DBUS_SYSTEM_BUS_ADDRESS: "unix:path=/run/dbus/system_bus_socket"
-      POTAGER_NAME: "${POTAGER_NAME:-Modulo2}"
+      POTAGER_ADDRESS: "${POTAGER_ADDRESS:-}"
       POTAGER_ADAPTER: "${POTAGER_ADAPTER:-hci1}"
-      POTAGER_SCAN_TIMEOUT: "${POTAGER_SCAN_TIMEOUT:-15}"
       POTAGER_CONNECT_TIMEOUT: "${POTAGER_CONNECT_TIMEOUT:-15}"
       POTAGER_RETRIES: "${POTAGER_RETRIES:-2}"
-      POTAGER_STATE_FILE: "${POTAGER_STATE_FILE:-/data/last_mac.txt}"
       POTAGER_TOPIC_PREFIX: "${POTAGER_TOPIC_PREFIX:-potager/modulo2}"
       MQTT_HOST: "${MQTT_HOST:-127.0.0.1}"
       MQTT_PORT: "${MQTT_PORT:-1883}"
       MQTT_USERNAME: "${MQTT_USERNAME:-}"
       MQTT_PASSWORD: "${MQTT_PASSWORD:-}"
       MQTT_CLIENT_ID: "${MQTT_CLIENT_ID:-potager-ble-bridge}"
+      POTAGER_LOG_LEVEL: "${POTAGER_LOG_LEVEL:-INFO}"
       POTAGER_DEBUG: "${POTAGER_DEBUG:-0}"
     volumes:
       - /var/run/dbus:/var/run/dbus
       - /run/dbus:/run/dbus
-      - ./state:/data
     command:
       - "daemon"
 
   mqtt-web-client:
-    image: hivemq/mqtt-web-client:latest
+    image: ghcr.io/thomasnordquist/mqtt-explorer:latest
     restart: unless-stopped
+    environment:
+      MQTT_EXPLORER_USERNAME: "${MQTT_EXPLORER_USERNAME:-admin}"
+      MQTT_EXPLORER_PASSWORD: "${MQTT_EXPLORER_PASSWORD:-your_secure_password}"
     networks:
       - proxy
     expose:
-      - "80"
+      - "3000"
+    volumes:
+      - mqtt_explorer_data:/mqtt-explorer/config
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"
       - "traefik.http.routers.potager-mqtt-web.rule=Host(`${MQTT_WEB_HOST:-mqtt.doudou.house}`)"
       - "traefik.http.routers.potager-mqtt-web.entrypoints=websecure"
       - "traefik.http.routers.potager-mqtt-web.tls.certresolver=leresolver"
-      - "traefik.http.routers.potager-mqtt-web.middlewares=auth@docker"
-      - "traefik.http.services.potager-mqtt-web.loadbalancer.server.port=80"
+      - "traefik.http.services.potager-mqtt-web.loadbalancer.server.port=3000"
 
 networks:
   proxy:
     external: true
+
+volumes:
+  mqtt_explorer_data:

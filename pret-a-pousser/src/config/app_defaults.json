@@ -1,11 +1,9 @@
 {
-  "target_name": "Modulo2",
-  "scan_timeout": 15.0,
+  "address": "",
   "connect_timeout": 15.0,
   "retries": 2,
   "loop_retry_delay": 5.0,
-  "state_file": "./.cache/last_mac.txt",
-  "auto_state_file": "./.cache/auto_mode_state.json",
+  "auto_state_file": "/data/auto_mode_state.json",
   "mqtt_topic_prefix": "potager/modulo2",
   "mqtt_client_id": "potager-ble-bridge"
 }

@@ -29,6 +29,10 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends bluez \
+  && rm -rf /var/lib/apt/lists/*
+
 RUN useradd --create-home --uid 10001 appuser
 
 WORKDIR /app
@@ -38,4 +42,4 @@ COPY --from=builder /app/src /app/src
 
 USER appuser
 
-ENTRYPOINT ["python", "/app/src/potager_ble.py"]
+ENTRYPOINT ["python", "-m", "src.potager_ble"]

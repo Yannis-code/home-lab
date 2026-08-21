@@ -5,16 +5,18 @@ Bridge BLE -> MQTT for Pret a Pousser Modulo2.
 This folder now uses a modular layout:
 
 - `src/potager_ble.py`: CLI entrypoint (commands + config + logging).
-- `src/ble_controller.py`: BLE discovery/read/write + auto-state snapshot/restore.
+- `src/ble_controller.py`: BLE read/write + robust connect retry + auto-state snapshot/restore.
 - `src/mqtt_bridge.py`: MQTT subscriptions/publications and protocol topic handlers.
 - `src/modulo2_protocol.py`: protocol wrapper (UUIDs, presets, encoders, builders).
-- `src/modulo2_mapping.json`: static protocol constants and channel groups.
-- `src/app_defaults.json`: static app defaults.
+- `src/config/modulo2_mapping.json`: static protocol constants and channel groups.
+- `src/config/preconfigured_state_profiles.json`: preconfigured state profiles (human-readable).
+- `src/config/app_defaults.json`: static app defaults.
 - `src/config_models.py`: typed app config dataclass.
 
 ## 1) Requirements
 
 - Linux host with BlueZ and BLE adapter (`hci0` recommended unless overridden).
+- Fixed BLE MAC address configured via `POTAGER_ADDRESS` (or `--address`).
 - Python >= 3.11 (project tested with venv).
 - MQTT broker reachable from this host.
 
@@ -94,32 +96,20 @@ python3 src/potager_ble.py auto-restore --use-saved-clock
 
 All topics are based on `POTAGER_TOPIC_PREFIX` (default: `potager/modulo2`).
 
-Control topics:
+Input topics:
 
-- `<prefix>/set`: payload `ON` or `OFF`
-- `<prefix>/channels/set`: JSON batch payload for protocol fields
-- `<prefix>/left/intensity/set`: `off|photo|faible|printemps|ete|0..255`
-- `<prefix>/right/intensity/set`: same as left
-- `<prefix>/left/start/set`: `HH:MM[:SS]`
-- `<prefix>/right/start/set`: `HH:MM[:SS]`
-- `<prefix>/left/end/set`: `HH:MM[:SS]`
-- `<prefix>/right/end/set`: `HH:MM[:SS]`
-- `<prefix>/clock/set`: `NOW` or `HH:MM[:SS]` or seconds-from-midnight
-- `<prefix>/left/profile-param/set`: raw byte payload (hex or decimal)
-- `<prefix>/right/profile-param/set`: raw byte payload (hex or decimal)
-- `<prefix>/reserved/set`: raw byte payload (hex or decimal)
-- `<prefix>/auto/save/set`: trigger auto-save (`1|ON|SAVE` or empty)
-- `<prefix>/auto/restore/set`: trigger auto-restore (`1|ON|RESTORE` or empty)
+- `<prefix>/state/set`: `off|auto|manuel|printemps|ete|été|photo`.
+- `<prefix>/save`: payload `trigger` (fetch BLE profile and update MQTT retained topics).
+- `<prefix>/auto`: JSON profile payload.
+- `<prefix>/manuel`: JSON profile payload.
 
-State topics:
+State semantics:
 
-- `<prefix>/availability`: `online|offline` (retained)
-- `<prefix>/state`: last ON/OFF command state
-- `<prefix>/error`: last error string (empty when clear)
-- `<prefix>/auto/saved`: JSON status of latest snapshot
-- `<prefix>/auto/restored`: JSON status of latest restore
+- `auto` and `manuel` use their corresponding JSON profiles (`<prefix>/auto` and `<prefix>/manuel`).
+- `off`, `printemps`, `ete|été`, and `photo` are preconfigured profiles defined in the protocol layer.
+- MQTT payloads remain human-readable; numeric BLE conversion is handled by `modulo2_protocol` and mapping files.
 
-`<prefix>/channels/set` example:
+Profile payload format (same for auto/manuel):
 
 ```json
 {
@@ -128,24 +118,42 @@ State topics:
   "left_start": "08:00",
   "right_start": "08:00",
   "left_end": "22:00",
-  "right_end": "22:00",
-  "clock_now": true,
-  "mirror_sides": false
+  "right_end": "22:00"
 }
 ```
 
-Optional raw fields in batch payload:
+Output/status topics:
 
-- `left_profile_param`
-- `right_profile_param`
-- `reserved`
+- `<prefix>/availability`: `online|offline` (retained).
+- `<prefix>/state`: current mode value (`off|auto|manuel|printemps|ete|photo`) or `null` (retained).
+- `<prefix>/clock`: current clock seconds value (read-only, retained).
+- `<prefix>/auto`: JSON profile snapshot (retained).
+- `<prefix>/manuel`: JSON profile snapshot (retained).
+- `<prefix>/status/device-write`: transient status (`sent|skipped|error`).
+- `<prefix>/status/active-profile`: transient status for active profile completeness.
+- `<prefix>/status/last-command`: transient status with last interpreted command.
 
-Accepted raw formats for these fields:
+Null semantics:
 
-- decimal byte: `195`
-- hex byte: `0xC3`
-- contiguous hex bytes: `c300` or `0xc300`
-- spaced hex bytes: `c3 00`
+- If a profile field is `null`, it is kept as `null` in the retained profile topic.
+- If at least one required profile field is `null`, no BLE write is sent when that profile is activated.
+- Channels not listed in the profile payload are ignored and never written by this contract.
+
+Read-only semantics:
+
+- `<prefix>/clock` is not a command topic.
+- Clock is refreshed from BLE on each `save` trigger read.
+
+Save semantics:
+
+- Publishing `trigger` on `<prefix>/save` reads current BLE profile fields.
+- Bridge updates `<prefix>/auto` with fetched profile values.
+- Bridge also updates `<prefix>/clock` with the device clock read during save.
+
+BLE address semantics:
+
+- The bridge uses configured `POTAGER_ADDRESS` / `--address` as the single BLE target.
+- Name-based BLE scan has been removed in favor of robust connection retries.
 
 ## 5) BLE protocol mapping (Modulo2)
 
@@ -184,21 +192,13 @@ Time encoding examples:
 
 ## 6) Auto-state snapshot format
 
-`auto-save` writes JSON with:
+Daemon MQTT mode uses broker-retained data (no local profile file persistence):
 
-- metadata (`schema`, `saved_at`, `device_name`, `device_address`)
-- `channels.<key>.uuid`
-- `channels.<key>.hex`
+- `<prefix>/auto` is the source of truth for auto profile data.
+- `<prefix>/save` updates this retained profile from BLE fetch.
+- Setting state to `auto` reapplies retained `<prefix>/auto` to BLE when profile is complete.
 
-Default file is controlled by `POTAGER_AUTO_STATE_FILE`:
-
-- local runs: `./.cache/auto_mode_state.json`
-- container runs: `/data/auto_mode_state.json`
-
-Restore behavior:
-
-- by default, `clock` is overwritten with current local time
-- `--use-saved-clock` restores `clock` from snapshot instead
+CLI `auto-save` / `auto-restore` commands remain available as local file workflow for one-shot/manual operations.
 
 ## 7) Docker/compose
 
@@ -231,4 +231,4 @@ MQTT web client:
 
 - No `sudo` is used in scripts/recipes.
 - If BLE cannot connect, check adapter name, bluetooth service state, and scan visibility with `just doctor`.
-- The source of truth for protocol constants is `src/modulo2_mapping.json`.
+- The source of truth for protocol constants is `src/config/modulo2_mapping.json`.

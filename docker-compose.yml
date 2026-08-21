@@ -1,5 +1,6 @@
 include:
   - ./traefik/docker-compose.yml
+  - ./pret-a-pousser/docker-compose.yml
     
 #networks:
   #proxy:

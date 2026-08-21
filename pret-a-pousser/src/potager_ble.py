@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import logging
 import os
+import signal
 import sys
 
 from src.ble_controller import PotagerController
@@ -21,14 +22,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Controle BLE du potager Modulo (Raspberry Pi)."
     )
-    parser.add_argument("--name", default=env("POTAGER_NAME", DEFAULTS["target_name"]))
-    parser.add_argument("--address", default=os.getenv("POTAGER_ADDRESS"))
+    parser.add_argument("--address", default=env("POTAGER_ADDRESS", ""))
     parser.add_argument("--adapter", default=os.getenv("POTAGER_ADAPTER"))
-    parser.add_argument(
-        "--scan-timeout",
-        type=float,
-        default=float(env("POTAGER_SCAN_TIMEOUT", str(DEFAULTS["scan_timeout"]))),
-    )
     parser.add_argument(
         "--connect-timeout",
         type=float,
@@ -38,10 +33,6 @@ def parse_args() -> argparse.Namespace:
         "--retries",
         type=int,
         default=int(env("POTAGER_RETRIES", str(DEFAULTS["retries"]))),
-    )
-    parser.add_argument(
-        "--state-file",
-        default=env("POTAGER_STATE_FILE", DEFAULTS["state_file"]),
     )
     parser.add_argument("--mqtt-host", default=env("MQTT_HOST", "localhost"))
     parser.add_argument("--mqtt-port", type=int, default=int(env("MQTT_PORT", "1883")))
@@ -59,6 +50,11 @@ def parse_args() -> argparse.Namespace:
         "--loop-retry-delay",
         type=float,
         default=float(env("POTAGER_LOOP_RETRY_DELAY", str(DEFAULTS["loop_retry_delay"]))),
+    )
+    parser.add_argument(
+        "--log-level",
+        default=env("POTAGER_LOG_LEVEL", "INFO"),
+        help="Niveau de logs: DEBUG|INFO|WARNING|ERROR|CRITICAL",
     )
     parser.add_argument("--debug", action="store_true", default=env("POTAGER_DEBUG", "0") == "1")
 
@@ -106,8 +102,12 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def configure_logging(debug: bool) -> None:
-    level = logging.DEBUG if debug else logging.INFO
+def configure_logging(debug: bool, log_level: str) -> None:
+    if debug:
+        level = logging.DEBUG
+    else:
+        level_name = str(log_level).strip().upper() or "INFO"
+        level = getattr(logging, level_name, logging.INFO)
     logging.basicConfig(
         level=level,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -131,35 +131,26 @@ def to_config(args: argparse.Namespace) -> AppConfig:
         set_mirror_sides=getattr(args, "mirror_sides", False),
         auto_state_file=getattr(args, "auto_state_file", env("POTAGER_AUTO_STATE_FILE", DEFAULTS["auto_state_file"])),
         restore_use_saved_clock=getattr(args, "use_saved_clock", False),
-        target_name=args.name,
         address=args.address,
         adapter=args.adapter,
-        scan_timeout=args.scan_timeout,
         connect_timeout=args.connect_timeout,
         retries=args.retries,
-        state_file=args.state_file,
         mqtt_host=args.mqtt_host,
         mqtt_port=args.mqtt_port,
         mqtt_username=args.mqtt_username,
         mqtt_password=args.mqtt_password,
         mqtt_client_id=args.mqtt_client_id,
         topic_prefix=prefix,
-        topic_set=f"{prefix}/set",
         topic_state=f"{prefix}/state",
         topic_availability=f"{prefix}/availability",
-        topic_error=f"{prefix}/error",
-        topic_auto_save_set=f"{prefix}/auto/save/set",
-        topic_auto_restore_set=f"{prefix}/auto/restore/set",
-        topic_auto_saved=f"{prefix}/auto/saved",
-        topic_auto_restored=f"{prefix}/auto/restored",
         loop_retry_delay=args.loop_retry_delay,
         debug=args.debug,
     )
 
 
 def validate_config(cfg: AppConfig) -> None:
-    if cfg.scan_timeout <= 0:
-        raise ValueError("--scan-timeout doit etre > 0")
+    if not cfg.address.strip():
+        raise ValueError("--address est requis (ou POTAGER_ADDRESS)")
     if cfg.connect_timeout <= 0:
         raise ValueError("--connect-timeout doit etre > 0")
     if cfg.retries < 0:
@@ -179,7 +170,12 @@ def validate_config(cfg: AppConfig) -> None:
 def main() -> int:
     args = parse_args()
     cfg = to_config(args)
-    configure_logging(cfg.debug)
+    configure_logging(cfg.debug, args.log_level)
+
+    def _handle_sigterm(signum: int, frame: object) -> None:
+        raise KeyboardInterrupt
+
+    signal.signal(signal.SIGTERM, _handle_sigterm)
 
     try:
         validate_config(cfg)

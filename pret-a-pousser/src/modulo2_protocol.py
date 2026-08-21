@@ -5,12 +5,19 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-_MAPPING_PATH = Path(__file__).with_name("modulo2_mapping.json")
+_CONFIG_DIR = Path(__file__).with_name("config")
+_MAPPING_PATH = _CONFIG_DIR / "modulo2_mapping.json"
+_STATE_PROFILES_PATH = _CONFIG_DIR / "preconfigured_state_profiles.json"
 
 
 def load_mapping_json(path: str | None = None) -> dict:
     mapping_path = Path(path) if path else _MAPPING_PATH
     return json.loads(mapping_path.read_text(encoding="utf-8"))
+
+
+def load_preconfigured_state_profiles_json(path: str | None = None) -> dict:
+    profiles_path = Path(path) if path else _STATE_PROFILES_PATH
+    return json.loads(profiles_path.read_text(encoding="utf-8"))
 
 
 MAPPING = load_mapping_json()
@@ -19,6 +26,11 @@ CHAR_UUIDS = MAPPING["characteristics"]
 INTENSITY_PRESETS = {
     key: int(value)
     for key, value in MAPPING["intensity_presets"].items()
+}
+INTENSITY_VALUES_TO_LABEL = {
+    int(value): key
+    for key, value in MAPPING["intensity_presets"].items()
+    if key != "on"
 }
 CHANNEL_GROUPS = MAPPING.get("groups", {})
 AUTO_SNAPSHOT_KEYS = CHANNEL_GROUPS.get(
@@ -97,6 +109,32 @@ def seconds_to_le32(seconds: int) -> bytearray:
     return bytearray(seconds.to_bytes(4, "little", signed=False))
 
 
+def le32_to_seconds(raw: bytes | bytearray) -> int:
+    if len(raw) != 4:
+        raise ValueError(f"Payload temps invalide (4 octets attendus): {len(raw)}")
+    seconds = int.from_bytes(bytes(raw), "little", signed=False)
+    if not 0 <= seconds <= 86399:
+        raise ValueError(f"Secondes depuis minuit hors plage: {seconds}")
+    return seconds
+
+
+def seconds_to_hhmmss(seconds: int) -> str:
+    if not 0 <= seconds <= 86399:
+        raise ValueError(f"Secondes depuis minuit hors plage: {seconds}")
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    secs = seconds % 60
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
+def decode_intensity_value(value: int) -> str:
+    if value in INTENSITY_VALUES_TO_LABEL:
+        return INTENSITY_VALUES_TO_LABEL[value]
+    if not 0 <= value <= 255:
+        raise ValueError(f"Intensite hors plage 0..255: {value}")
+    return str(value)
+
+
 def hhmm_to_le32(value: str) -> bytearray:
     return seconds_to_le32(parse_hhmm_to_seconds(value))
 
@@ -117,6 +155,33 @@ class SetChannelsInput:
     clock_now: bool = False
     clock_seconds: int | None = None
     mirror_sides: bool = False
+
+
+def _to_set_channels_input(node: dict[str, object]) -> SetChannelsInput:
+    return SetChannelsInput(
+        left_intensity=node.get("left_intensity") if isinstance(node.get("left_intensity"), str) else None,
+        right_intensity=node.get("right_intensity") if isinstance(node.get("right_intensity"), str) else None,
+        left_start=node.get("left_start") if isinstance(node.get("left_start"), str) else None,
+        right_start=node.get("right_start") if isinstance(node.get("right_start"), str) else None,
+        left_end=node.get("left_end") if isinstance(node.get("left_end"), str) else None,
+        right_end=node.get("right_end") if isinstance(node.get("right_end"), str) else None,
+    )
+
+
+def load_preconfigured_state_profiles(path: str | None = None) -> dict[str, SetChannelsInput]:
+    raw = load_preconfigured_state_profiles_json(path)
+    if not isinstance(raw, dict):
+        raise ValueError("preconfigured_state_profiles.json doit contenir un objet JSON")
+
+    out: dict[str, SetChannelsInput] = {}
+    for state, node in raw.items():
+        if not isinstance(state, str) or not isinstance(node, dict):
+            continue
+        out[state.strip().lower()] = _to_set_channels_input(node)
+    return out
+
+
+PRECONFIGURED_STATE_PROFILES = load_preconfigured_state_profiles()
 
 
 def _mirror_right(left: str | None, right: str | None, mirror: bool) -> str | None:
@@ -178,3 +243,13 @@ def build_set_writes(cfg: SetChannelsInput) -> list[tuple[str, bytearray]]:
         raise ValueError("Aucune valeur a ecrire. Fournir au moins un parametre --left-*/--right-* ou clock")
 
     return writes
+
+
+def build_preconfigured_state_writes(state: str) -> list[tuple[str, bytearray]]:
+    key = state.strip().lower()
+    if key == "été":
+        key = "ete"
+    profile = PRECONFIGURED_STATE_PROFILES.get(key)
+    if profile is None:
+        raise ValueError(f"Etat preconfigure inconnu: {state}")
+    return build_set_writes(profile)

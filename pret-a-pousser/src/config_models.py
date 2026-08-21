@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-_DEFAULTS_PATH = Path(__file__).with_name("app_defaults.json")
+_DEFAULTS_PATH = Path(__file__).with_name("config") / "app_defaults.json"
 
 
 def load_defaults(path: str | None = None) -> dict:
@@ -30,26 +30,17 @@ class AppConfig:
     set_mirror_sides: bool
     auto_state_file: str
     restore_use_saved_clock: bool
-    target_name: str
-    address: str | None
+    address: str
     adapter: str | None
-    scan_timeout: float
     connect_timeout: float
     retries: int
-    state_file: str
     mqtt_host: str
     mqtt_port: int
     mqtt_username: str | None
     mqtt_password: str | None
     mqtt_client_id: str
     topic_prefix: str
-    topic_set: str
     topic_state: str
     topic_availability: str
-    topic_error: str
-    topic_auto_save_set: str
-    topic_auto_restore_set: str
-    topic_auto_saved: str
-    topic_auto_restored: str
     loop_retry_delay: float
     debug: bool

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from contextlib import suppress
 from datetime import datetime, timezone
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -27,15 +29,15 @@ LOGGER = logging.getLogger("potager_ble")
 class PotagerController:
     def __init__(self, cfg: AppConfig):
         self.cfg = cfg
-        self.current_address = cfg.address
-
-    def _state_path(self) -> Path:
-        return Path(self.cfg.state_file)
+        self.current_address = cfg.address.strip()
+        self._bluetoothctl_available: bool | None = None
+        self._startup_cleanup_done = False
 
     def _auto_state_path(self) -> Path:
         return Path(self.cfg.auto_state_file)
 
     def _bluez(self) -> dict[str, str] | None:
+        LOGGER.info("Adapter BLE configure: %s", self.cfg.adapter)
         if self.cfg.adapter:
             return {"adapter": self.cfg.adapter}
         return None
@@ -47,83 +49,199 @@ class PotagerController:
             client_kwargs["bluez"] = bluez
         return client_kwargs
 
-    def load_last_mac(self) -> str | None:
-        path = self._state_path()
-        try:
-            if not path.exists():
-                return None
-            value = path.read_text(encoding="utf-8").strip()
-            return value or None
-        except OSError as exc:
-            LOGGER.warning("Lecture cache MAC impossible (%s): %s", path, exc)
-            return None
-
-    def save_last_mac(self, address: str) -> None:
-        path = self._state_path()
-        try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(address, encoding="utf-8")
-            LOGGER.debug("MAC sauvegardee: %s", address)
-        except OSError as exc:
-            LOGGER.warning("Sauvegarde cache MAC impossible (%s): %s", path, exc)
-
-    async def scan_for_address(self) -> str:
-        LOGGER.info(
-            "Scan BLE en cours (%.1fs) pour trouver %s",
-            self.cfg.scan_timeout,
-            self.cfg.target_name,
-        )
-        bluez = self._bluez()
-        if bluez is None:
-            devices = await BleakScanner.discover(timeout=self.cfg.scan_timeout)
-        else:
-            devices = await BleakScanner.discover(
-                timeout=self.cfg.scan_timeout,
-                bluez=bluez,
+    def _bluetoothctl_select_commands(self) -> list[str]:
+        adapter = (self.cfg.adapter or "").strip()
+        if adapter.lower().startswith("hci"):
+            return [f"select {adapter}"]
+        if adapter:
+            LOGGER.warning(
+                "Adapter '%s' n'est pas un nom d'interface bluetoothctl (attendu: hciX)",
+                adapter,
             )
+        return []
 
-        for device in devices:
-            if device.name == self.cfg.target_name:
-                LOGGER.info("Appareil trouve: %s (%s)", device.name, device.address)
-                return device.address
+    def _run_bluetoothctl_action(self, action: str, address: str, source: str) -> subprocess.CompletedProcess[str]:
+        commands = self._bluetoothctl_select_commands() + [f"{action} {address}", "quit"]
+        script = "\n".join(commands) + "\n"
+        return subprocess.run(
+            ["bluetoothctl", "--timeout", "5"],
+            input=script,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=7,
+        )
 
-        raise RuntimeError(f"Appareil {self.cfg.target_name} introuvable apres scan")
+    def _bluez_disconnect_hint(self, address: str, source: str) -> None:
+        """Ask BlueZ to drop any stale link for this MAC before reconnect attempts."""
+        if self._bluetoothctl_available is False:
+            LOGGER.debug("bluetoothctl unavailable, skip hint disconnect")
+            return
 
-    async def test_connect(self, address: str) -> None:
-        client = BleakClient(address, **self._client_kwargs())
+        LOGGER.info("Hint disconnect BlueZ (%s) sur %s", source, address)
+        try:
+            result = self._run_bluetoothctl_action("disconnect", address, source)
+            self._bluetoothctl_available = True
+            if result.returncode == 0:
+                LOGGER.info("Hint disconnect BlueZ OK (%s): %s", source, address)
+            else:
+                stderr = (result.stderr or "").strip()
+                if stderr:
+                    LOGGER.warning("Hint disconnect BlueZ rc=%s (%s): %s", result.returncode, source, stderr)
+                else:
+                    LOGGER.warning("Hint disconnect BlueZ rc=%s (%s)", result.returncode, source)
+        except FileNotFoundError:
+            self._bluetoothctl_available = False
+            LOGGER.warning("bluetoothctl indisponible, skip hint disconnect")
+        except Exception as exc:  # noqa: BLE001
+            LOGGER.warning("Hint disconnect BlueZ ignore (%s): %r", source, exc)
+
+    def _bluez_remove_hint(self, address: str, source: str) -> None:
+        """Ask BlueZ to remove cached device object for this MAC."""
+        if self._bluetoothctl_available is False:
+            LOGGER.debug("bluetoothctl unavailable, skip hint remove")
+            return
+
+        LOGGER.info("Hint remove BlueZ (%s) sur %s", source, address)
+        try:
+            result = self._run_bluetoothctl_action("remove", address, source)
+            self._bluetoothctl_available = True
+            if result.returncode == 0:
+                LOGGER.info("Hint remove BlueZ OK (%s): %s", source, address)
+            else:
+                stderr = (result.stderr or "").strip()
+                if stderr:
+                    LOGGER.warning("Hint remove BlueZ rc=%s (%s): %s", result.returncode, source, stderr)
+                else:
+                    LOGGER.warning("Hint remove BlueZ rc=%s (%s)", result.returncode, source)
+        except FileNotFoundError:
+            self._bluetoothctl_available = False
+            LOGGER.warning("bluetoothctl indisponible, skip hint remove")
+        except Exception as exc:  # noqa: BLE001
+            LOGGER.warning("Hint remove BlueZ ignore (%s): %r", source, exc)
+
+    def prepare_first_connection(self) -> None:
+        """One-shot cleanup before first BLE connect attempt."""
+        if self._startup_cleanup_done:
+            return
+        address = self.current_address or self.cfg.address.strip()
+        if not address:
+            return
+        LOGGER.info("Pre-cleanup BLE startup sur %s", address)
+        self._bluez_disconnect_hint(address, "startup")
+        self._bluez_remove_hint(address, "startup")
+        self._startup_cleanup_done = True
+
+    def cleanup_on_shutdown(self) -> None:
+        """Best-effort BLE cleanup when process is stopping."""
+        address = self.current_address or self.cfg.address.strip()
+        if not address:
+            return
+        LOGGER.info("Cleanup BLE shutdown sur %s", address)
+        self._bluez_disconnect_hint(address, "shutdown")
+        self._bluez_remove_hint(address, "shutdown")
+
+    async def _open_client_with_hard_connect(self, address: str, label: str) -> BleakClient:
+        client_kwargs = self._client_kwargs()
+
+        # Fast path: direct connect to the known MAC.
+        client = BleakClient(address, **client_kwargs)
         try:
             await client.connect()
+            LOGGER.debug("Connexion directe OK (%s): %s", label, address)
+            return client
+        except Exception as direct_exc:  # noqa: BLE001
+            with suppress(Exception):
+                await client.disconnect()
+            LOGGER.warning(
+                "Connexion directe echec (%s) vers %s: %r",
+                label,
+                address,
+                direct_exc,
+            )
+            self._bluez_disconnect_hint(address, f"direct-failed:{label}")
+            await asyncio.sleep(0.4)
+
+        # Hard-connect path: scan explicitly for this MAC to refresh BlueZ device state.
+        scan_timeout = max(3.0, min(self.cfg.connect_timeout, 10.0))
+        bluez = self._bluez()
+        scan_kwargs: dict[str, Any] = {"timeout": scan_timeout}
+        if bluez is not None:
+            scan_kwargs["bluez"] = bluez
+
+        LOGGER.info(
+            "Hard-connect (%s): scan cible sur %s (%.1fs)",
+            label,
+            address,
+            scan_timeout,
+        )
+        device = await BleakScanner.find_device_by_address(address, **scan_kwargs)
+        if device is None:
+            raise RuntimeError(
+                f"Hard-connect impossible: appareil {address} introuvable pendant scan cible"
+            )
+
+        client = BleakClient(device, **client_kwargs)
+        await client.connect()
+        LOGGER.info("Hard-connect OK (%s): %s", label, address)
+        return client
+
+    async def test_connect(self, address: str) -> None:
+        client = await self._open_client_with_hard_connect(address, "test")
+        try:
             LOGGER.debug("Connexion test OK: %s", address)
         finally:
             with suppress(Exception):
                 await client.disconnect()
 
-    async def resolve_address(self, force_scan: bool = False) -> str:
-        if not force_scan:
-            candidates = [self.current_address, self.cfg.address, self.load_last_mac()]
-            seen: set[str] = set()
-            for candidate in candidates:
-                if not candidate or candidate in seen:
-                    continue
-                seen.add(candidate)
-                try:
-                    LOGGER.info("Test connexion BLE sur MAC connu %s", candidate)
-                    await self.test_connect(candidate)
-                    self.current_address = candidate
-                    self.save_last_mac(candidate)
-                    return candidate
-                except Exception as exc:  # noqa: BLE001
-                    LOGGER.warning("MAC connu invalide %s: %r", candidate, exc)
+    async def _connect_with_retry(self, address: str, label: str) -> None:
+        attempts = max(1, self.cfg.retries + 1)
+        last_exc: Exception | None = None
 
-        scanned = await self.scan_for_address()
-        await self.test_connect(scanned)
-        self.current_address = scanned
-        self.save_last_mac(scanned)
-        return scanned
+        for attempt in range(1, attempts + 1):
+            try:
+                LOGGER.info(
+                    "Connexion BLE %s vers %s (tentative %d/%d)",
+                    label,
+                    address,
+                    attempt,
+                    attempts,
+                )
+                await self.test_connect(address)
+                return
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
+                LOGGER.warning(
+                    "Connexion BLE en echec %s vers %s (tentative %d/%d): %r",
+                    label,
+                    address,
+                    attempt,
+                    attempts,
+                    exc,
+                )
+                if attempt < attempts:
+                    self._bluez_disconnect_hint(address, f"retry:{label}")
+                    backoff_s = min(3.0, 0.5 * attempt)
+                    LOGGER.info("Nouvelle tentative dans %.1fs", backoff_s)
+                    await asyncio.sleep(backoff_s)
+
+        if last_exc is not None:
+            raise RuntimeError(
+                f"Connexion BLE impossible vers {address} apres {attempts} tentative(s)"
+            ) from last_exc
+        raise RuntimeError(f"Connexion BLE impossible vers {address}")
+
+    async def resolve_address(self) -> str:
+        address = self.current_address or self.cfg.address.strip()
+        if not address:
+            raise ValueError("Aucune adresse MAC configuree")
+        self.prepare_first_connection()
+        await self._connect_with_retry(address, "resolve")
+        self.current_address = address
+        return address
 
     async def _write_once(self, address: str, writes: list[tuple[str, bytearray]]) -> None:
-        client = BleakClient(address, **self._client_kwargs())
-        await client.connect()
+        client = await self._open_client_with_hard_connect(address, "write")
         sent = False
         try:
             for uuid, payload in writes:
@@ -144,10 +262,12 @@ class PotagerController:
 
     async def send_writes(self, label: str, writes: list[tuple[str, bytearray]]) -> None:
         attempts = max(1, self.cfg.retries + 1)
+        address = self.current_address or self.cfg.address.strip()
+        if not address:
+            raise ValueError("Aucune adresse MAC configuree")
 
         for attempt in range(1, attempts + 1):
             try:
-                address = self.current_address or await self.resolve_address(force_scan=False)
                 LOGGER.info(
                     "Envoi %s vers %s (tentative %d/%d)",
                     label,
@@ -156,22 +276,23 @@ class PotagerController:
                     attempts,
                 )
                 await self._write_once(address, writes)
-                self.save_last_mac(address)
+                self.current_address = address
                 return
             except Exception as exc:  # noqa: BLE001
                 LOGGER.exception("Echec tentative %d/%d: %s", attempt, attempts, exc)
-                self.current_address = None
                 if attempt < attempts:
-                    await self.resolve_address(force_scan=True)
+                    await self._connect_with_retry(address, f"retry {label}")
                 else:
                     raise
 
     async def read_channels(self, label: str, channel_keys: list[str]) -> dict[str, bytearray]:
         attempts = max(1, self.cfg.retries + 1)
+        address = self.current_address or self.cfg.address.strip()
+        if not address:
+            raise ValueError("Aucune adresse MAC configuree")
 
         for attempt in range(1, attempts + 1):
             try:
-                address = self.current_address or await self.resolve_address(force_scan=False)
                 LOGGER.info(
                     "Lecture %s depuis %s (tentative %d/%d)",
                     label,
@@ -179,8 +300,7 @@ class PotagerController:
                     attempt,
                     attempts,
                 )
-                client = BleakClient(address, **self._client_kwargs())
-                await client.connect()
+                client = await self._open_client_with_hard_connect(address, f"read {label}")
                 values: dict[str, bytearray] = {}
                 try:
                     for key in channel_keys:
@@ -192,13 +312,12 @@ class PotagerController:
                 finally:
                     with suppress(Exception):
                         await client.disconnect()
-                self.save_last_mac(address)
+                self.current_address = address
                 return values
             except Exception as exc:  # noqa: BLE001
                 LOGGER.exception("Echec lecture tentative %d/%d: %s", attempt, attempts, exc)
-                self.current_address = None
                 if attempt < attempts:
-                    await self.resolve_address(force_scan=True)
+                    await self._connect_with_retry(address, f"retry read {label}")
                 else:
                     raise
 
@@ -212,7 +331,6 @@ class PotagerController:
         payload = {
             "schema": 1,
             "saved_at": datetime.now(timezone.utc).isoformat(),
-            "device_name": self.cfg.target_name,
             "device_address": address,
             "channels": {
                 key: {

@@ -1,0 +1,34 @@
+{
+  "off": {
+    "left_intensity": "off",
+    "right_intensity": "off",
+    "left_start": "00:00:00",
+    "right_start": "00:00:00",
+    "left_end": "23:59:00",
+    "right_end": "23:59:00"
+  },
+  "photo": {
+    "left_intensity": "photo",
+    "right_intensity": "photo",
+    "left_start": "00:00:00",
+    "right_start": "00:00:00",
+    "left_end": "23:59:00",
+    "right_end": "23:59:00"
+  },
+  "printemps": {
+    "left_intensity": "printemps",
+    "right_intensity": "printemps",
+    "left_start": "00:00:00",
+    "right_start": "00:00:00",
+    "left_end": "23:59:00",
+    "right_end": "23:59:00"
+  },
+  "ete": {
+    "left_intensity": "ete",
+    "right_intensity": "ete",
+    "left_start": "00:00:00",
+    "right_start": "00:00:00",
+    "left_end": "23:59:00",
+    "right_end": "23:59:00"
+  }
+}
