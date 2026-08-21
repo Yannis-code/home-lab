@@ -15,6 +15,14 @@
     "left_end": "23:59:00",
     "right_end": "23:59:00"
   },
+  "faible": {
+    "left_intensity": "faible",
+    "right_intensity": "faible",
+    "left_start": "00:00:00",
+    "right_start": "00:00:00",
+    "left_end": "23:59:00",
+    "right_end": "23:59:00"
+  },
   "printemps": {
     "left_intensity": "printemps",
     "right_intensity": "printemps",

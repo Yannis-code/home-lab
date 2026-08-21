@@ -22,7 +22,7 @@ LOGGER = logging.getLogger("potager_ble")
 
 class MqttBridge:
     PROFILE_STATES = ("auto", "manuel")
-    ACTION_STATES = ("off", "printemps", "ete", "photo")
+    ACTION_STATES = ("off", "faible", "printemps", "ete", "photo")
     PROFILE_FIELDS = (
         "left_intensity",
         "right_intensity",
