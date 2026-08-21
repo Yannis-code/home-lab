@@ -1,0 +1,284 @@
+input_select:
+  potager_state_target:
+    name: Potager State Target
+    options:
+      - auto
+      - manuel
+      - preset
+    initial: auto
+  potager_preset_target:
+    name: Potager Preset Target
+    options:
+      - "off"
+      - photo
+      - faible
+      - printemps
+      - ete
+    initial: printemps
+  potager_manuel_channel_mode:
+    name: Potager Manuel Channel Mode
+    options:
+      - both
+      - left
+      - right
+    initial: both
+  potager_manuel_both_intensity:
+    name: Potager Manuel Both Intensity
+    options:
+      - faible
+      - printemps
+      - ete
+    initial: printemps
+  potager_manuel_left_intensity:
+    name: Potager Manuel Left Intensity
+    options:
+      - faible
+      - printemps
+      - ete
+    initial: printemps
+  potager_manuel_right_intensity:
+    name: Potager Manuel Right Intensity
+    options:
+      - faible
+      - printemps
+      - ete
+    initial: printemps
+
+input_text:
+  potager_manuel_both_start:
+    name: Potager Manuel Both Start
+    initial: "08:00:00"
+  potager_manuel_both_end:
+    name: Potager Manuel Both End
+    initial: "22:00:00"
+  potager_manuel_left_start:
+    name: Potager Manuel Left Start
+    initial: "08:00:00"
+  potager_manuel_right_start:
+    name: Potager Manuel Right Start
+    initial: "08:00:00"
+  potager_manuel_left_end:
+    name: Potager Manuel Left End
+    initial: "22:00:00"
+  potager_manuel_right_end:
+    name: Potager Manuel Right End
+    initial: "22:00:00"
+
+script:
+  potager_auto_save:
+    alias: Potager Auto Save
+    sequence:
+      - service: mqtt.publish
+        data:
+          topic: potager/modulo2/save
+          payload: "trigger"
+
+  potager_auto_set:
+    alias: Potager Auto Set
+    sequence:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.potager_state_target
+        data:
+          option: auto
+      - service: mqtt.publish
+        data:
+          topic: potager/modulo2/state/set
+          payload: "auto"
+
+  potager_state_set:
+    alias: Potager State Set
+    sequence:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: >-
+                  {{ states("input_select.potager_state_target") == "manuel" }}
+            sequence:
+              - service: script.potager_manuel_publish_profile
+          - conditions:
+              - condition: template
+                value_template: >-
+                  {{ states("input_select.potager_state_target") == "preset" }}
+            sequence:
+              - service: script.potager_preset_set
+              - stop: "Preset set handled by dedicated script"
+      - service: mqtt.publish
+        data:
+          topic: potager/modulo2/state/set
+          payload: >-
+            {{ states("input_select.potager_state_target") }}
+
+  potager_preset_set:
+    alias: Potager Preset Set
+    sequence:
+      - service: mqtt.publish
+        data:
+          topic: potager/modulo2/state/set
+          payload: >-
+            {{ states("input_select.potager_preset_target") }}
+
+  potager_manuel_publish_profile:
+    alias: Potager Manuel Publish Profile
+    sequence:
+      - service: mqtt.publish
+        data:
+          topic: potager/modulo2/manuel
+          payload: >-
+            {{ {
+              "left_intensity": states("input_select.potager_manuel_left_intensity"),
+              "right_intensity": states("input_select.potager_manuel_right_intensity"),
+              "left_start": states("input_text.potager_manuel_left_start"),
+              "right_start": states("input_text.potager_manuel_right_start"),
+              "left_end": states("input_text.potager_manuel_left_end"),
+              "right_end": states("input_text.potager_manuel_right_end")
+            } | tojson }}
+
+  potager_manuel_set:
+    alias: Potager Manuel Set
+    sequence:
+      - service: script.potager_manuel_set_channels
+
+  potager_manuel_set_channels:
+    alias: Potager Manuel Set Channels
+    sequence:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.potager_state_target
+        data:
+          option: manuel
+      - service: mqtt.publish
+        data:
+          topic: potager/modulo2/manuel
+          payload: >-
+            {% set mode = states("input_select.potager_manuel_channel_mode") %}
+            {% set left_intensity = states("input_select.potager_manuel_both_intensity") if mode == "both" else states("input_select.potager_manuel_left_intensity") %}
+            {% set right_intensity = states("input_select.potager_manuel_both_intensity") if mode == "both" else states("input_select.potager_manuel_right_intensity") %}
+            {% set left_start = states("input_text.potager_manuel_both_start") if mode == "both" else states("input_text.potager_manuel_left_start") %}
+            {% set right_start = states("input_text.potager_manuel_both_start") if mode == "both" else states("input_text.potager_manuel_right_start") %}
+            {% set left_end = states("input_text.potager_manuel_both_end") if mode == "both" else states("input_text.potager_manuel_left_end") %}
+            {% set right_end = states("input_text.potager_manuel_both_end") if mode == "both" else states("input_text.potager_manuel_right_end") %}
+            {{ {
+              "left_intensity": left_intensity,
+              "right_intensity": right_intensity,
+              "left_start": left_start,
+              "right_start": right_start,
+              "left_end": left_end,
+              "right_end": right_end
+            } | tojson }}
+      - service: mqtt.publish
+        data:
+          topic: potager/modulo2/state/set
+          payload: "manuel"
+
+  potager_preset_off:
+    alias: Potager Preset Off
+    sequence:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.potager_preset_target
+        data:
+          option: "off"
+      - service: mqtt.publish
+        data:
+          topic: potager/modulo2/state/set
+          payload: "off"
+
+  potager_preset_photo:
+    alias: Potager Preset Photo
+    sequence:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.potager_preset_target
+        data:
+          option: photo
+      - service: mqtt.publish
+        data:
+          topic: potager/modulo2/state/set
+          payload: "photo"
+
+  potager_preset_faible:
+    alias: Potager Preset Faible
+    sequence:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.potager_preset_target
+        data:
+          option: faible
+      - service: mqtt.publish
+        data:
+          topic: potager/modulo2/state/set
+          payload: "faible"
+
+  potager_preset_printemps:
+    alias: Potager Preset Printemps
+    sequence:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.potager_preset_target
+        data:
+          option: printemps
+      - service: mqtt.publish
+        data:
+          topic: potager/modulo2/state/set
+          payload: "printemps"
+
+  potager_preset_ete:
+    alias: Potager Preset Ete
+    sequence:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.potager_preset_target
+        data:
+          option: ete
+      - service: mqtt.publish
+        data:
+          topic: potager/modulo2/state/set
+          payload: "ete"
+
+mqtt:
+  sensor:
+    - name: Potager State
+      state_topic: potager/modulo2/state
+
+    - name: Potager Clock
+      state_topic: potager/modulo2/clock
+
+    - name: Potager Last Command
+      state_topic: potager/modulo2/status/last-command
+
+    - name: Potager Device Write
+      state_topic: potager/modulo2/status/device-write
+
+    - name: Potager Active Profile
+      state_topic: potager/modulo2/status/active-profile
+
+  binary_sensor:
+    - name: Potager Availability
+      state_topic: potager/modulo2/availability
+      payload_on: "online"
+      payload_off: "offline"
+
+automation:
+  - alias: Potager Manuel Auto Send On Param Change
+    id: potager_manuel_auto_send_on_param_change
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id:
+          - input_select.potager_manuel_channel_mode
+          - input_select.potager_manuel_both_intensity
+          - input_select.potager_manuel_left_intensity
+          - input_select.potager_manuel_right_intensity
+          - input_text.potager_manuel_both_start
+          - input_text.potager_manuel_both_end
+          - input_text.potager_manuel_left_start
+          - input_text.potager_manuel_left_end
+          - input_text.potager_manuel_right_start
+          - input_text.potager_manuel_right_end
+    condition:
+      - condition: state
+        entity_id: input_select.potager_state_target
+        state: "manuel"
+    action:
+      - service: script.potager_manuel_set_channels

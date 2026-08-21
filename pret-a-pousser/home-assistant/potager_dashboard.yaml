@@ -1,0 +1,488 @@
+type: custom:custom-features-card
+features:
+  - type: custom:service-call
+    entries:
+      - type: selector
+        entity_id: input_select.potager_state_target
+        value_attribute: state
+        options:
+          - option: auto
+            icon: mdi:leaf
+            label: Auto
+            entity_id: input_select.potager_state_target
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: script.turn_on
+              target:
+                entity_id: script.potager_auto_set
+            hold_action:
+              action: perform-action
+              perform_action: script.turn_on
+              target:
+                entity_id: script.potager_auto_save
+          - option: manuel
+            icon: mdi:tune-variant
+            label: Manuel
+            entity_id: input_select.potager_state_target
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: input_select.select_option
+              target:
+                entity_id: input_select.potager_state_target
+              data:
+                option: manuel
+          - option: preset
+            icon: mdi:playlist-star
+            label: Preset
+            entity_id: input_select.potager_state_target
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: input_select.select_option
+              target:
+                entity_id: input_select.potager_state_target
+              data:
+                option: preset
+    #   - type: button
+    #     icon: mdi:message-alert-outline
+    #     label: '{{ states("sensor.potager_device_write") }}'
+    #     entity_id: sensor.potager_device_write
+    #     value_attribute: state
+    #     tap_action:
+    #       action: more-info
+    #       target:
+    #         entity_id: sensor.potager_device_write
+    # styles: |-
+    #   :host {
+    #     --feature-height: 50px;
+    #   }
+
+  - type: custom:service-call
+    entries:
+      - type: selector
+        entity_id: input_select.potager_manuel_channel_mode
+        value_attribute: state
+        options:
+          - option: left
+            icon: mdi:arrow-left-bold
+            label: Left
+            entity_id: input_select.potager_manuel_channel_mode
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: input_select.select_option
+              target:
+                entity_id: input_select.potager_manuel_channel_mode
+              data:
+                option: left
+          - option: both
+            icon: mdi:call-merge
+            label: Both
+            entity_id: input_select.potager_manuel_channel_mode
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: input_select.select_option
+              target:
+                entity_id: input_select.potager_manuel_channel_mode
+              data:
+                option: both
+          - option: right
+            icon: mdi:arrow-right-bold
+            label: Right
+            entity_id: input_select.potager_manuel_channel_mode
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: input_select.select_option
+              target:
+                entity_id: input_select.potager_manuel_channel_mode
+              data:
+                option: right
+    styles: |-
+      {% if not is_state("input_select.potager_state_target", "manuel") %}
+      :host {
+        display: none;
+      }
+      {% endif %}
+
+  - type: custom:service-call
+    entries:
+      - type: selector
+        styles: |-
+          {% if not is_state("input_select.potager_manuel_channel_mode", "left") %}
+          :host {
+            display: none;
+          }
+          {% endif %}
+        entity_id: input_select.potager_manuel_left_intensity
+        value_attribute: state
+        options:
+          - option: faible
+            icon: mdi:brightness-5
+            label: Faible
+            entity_id: input_select.potager_manuel_left_intensity
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: input_select.select_option
+              target:
+                entity_id: input_select.potager_manuel_left_intensity
+              data:
+                option: faible
+          - option: printemps
+            icon: mdi:flower
+            label: Printemps
+            entity_id: input_select.potager_manuel_left_intensity
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: input_select.select_option
+              target:
+                entity_id: input_select.potager_manuel_left_intensity
+              data:
+                option: printemps
+          - option: ete
+            icon: mdi:sun-wireless
+            label: Ete
+            entity_id: input_select.potager_manuel_left_intensity
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: input_select.select_option
+              target:
+                entity_id: input_select.potager_manuel_left_intensity
+              data:
+                option: ete
+      - type: selector
+        styles: |-
+          {% if not is_state("input_select.potager_manuel_channel_mode", "both") %}
+          :host {
+            display: none;
+          }
+          {% endif %}
+        entity_id: input_select.potager_manuel_both_intensity
+        value_attribute: state
+        options:
+          - option: "off"
+            icon: mdi:power
+            label: "off"
+            entity_id: input_select.potager_manuel_both_intensity
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: input_select.select_option
+              target:
+                entity_id: input_select.potager_manuel_both_intensity
+              data:
+                option: "off"
+          - option: faible
+            icon: mdi:brightness-5
+            label: Faible
+            entity_id: input_select.potager_manuel_both_intensity
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: input_select.select_option
+              target:
+                entity_id: input_select.potager_manuel_both_intensity
+              data:
+                option: faible
+          - option: printemps
+            icon: mdi:flower
+            label: Printemps
+            entity_id: input_select.potager_manuel_both_intensity
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: input_select.select_option
+              target:
+                entity_id: input_select.potager_manuel_both_intensity
+              data:
+                option: printemps
+          - option: ete
+            icon: mdi:sun-wireless
+            label: Ete
+            entity_id: input_select.potager_manuel_both_intensity
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: input_select.select_option
+              target:
+                entity_id: input_select.potager_manuel_both_intensity
+              data:
+                option: ete
+      - type: selector
+        styles: |-
+          {% if not is_state("input_select.potager_manuel_channel_mode", "right") %}
+          :host {
+            display: none;
+          }
+          {% endif %}
+        entity_id: input_select.potager_manuel_right_intensity
+        value_attribute: state
+        options:
+          - option: "off"
+            icon: mdi:power
+            label: "off"
+            entity_id: input_select.potager_manuel_right_intensity
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: input_select.select_option
+              target:
+                entity_id: input_select.potager_manuel_right_intensity
+              data:
+                option: "off"
+          - option: faible
+            icon: mdi:brightness-5
+            label: Faible
+            entity_id: input_select.potager_manuel_right_intensity
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: input_select.select_option
+              target:
+                entity_id: input_select.potager_manuel_right_intensity
+              data:
+                option: faible
+          - option: printemps
+            icon: mdi:flower
+            label: Printemps
+            entity_id: input_select.potager_manuel_right_intensity
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: input_select.select_option
+              target:
+                entity_id: input_select.potager_manuel_right_intensity
+              data:
+                option: printemps
+          - option: ete
+            icon: mdi:sun-wireless
+            label: Ete
+            entity_id: input_select.potager_manuel_right_intensity
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: input_select.select_option
+              target:
+                entity_id: input_select.potager_manuel_right_intensity
+              data:
+                option: ete
+    styles: |-
+      {% if not is_state("input_select.potager_state_target", "manuel") %}
+      :host {
+        display: none;
+      }
+      {% endif %}
+
+  - type: custom:service-call
+    entries:
+      - type: input
+        styles: |-
+          {% if not is_state("input_select.potager_manuel_channel_mode", "both") %}
+          :host {
+            display: none;
+          }
+          {% endif %}
+        entity_id: input_text.potager_manuel_both_start
+        value_attribute: state
+        input_type: time
+        icon: mdi:clock-start
+        label: Debut Both
+        tap_action:
+          action: perform-action
+          perform_action: input_text.set_value
+          target:
+            entity_id: input_text.potager_manuel_both_start
+          data:
+            value: '{{ value }}'
+      - type: input
+        styles: |-
+          {% if not is_state("input_select.potager_manuel_channel_mode", "both") %}
+          :host {
+            display: none;
+          }
+          {% endif %}
+        entity_id: input_text.potager_manuel_both_end
+        value_attribute: state
+        input_type: time
+        icon: mdi:clock-end
+        label: Fin Both
+        tap_action:
+          action: perform-action
+          perform_action: input_text.set_value
+          target:
+            entity_id: input_text.potager_manuel_both_end
+          data:
+            value: '{{ value }}'
+      - type: input
+        styles: |-
+          {% if not is_state("input_select.potager_manuel_channel_mode", "left") %}
+          :host {
+            display: none;
+          }
+          {% endif %}
+        entity_id: input_text.potager_manuel_left_start
+        value_attribute: state
+        input_type: time
+        icon: mdi:clock-start
+        label: Debut G
+        tap_action:
+          action: perform-action
+          perform_action: input_text.set_value
+          target:
+            entity_id: input_text.potager_manuel_left_start
+          data:
+            value: '{{ value }}'
+      - type: input
+        styles: |-
+          {% if not is_state("input_select.potager_manuel_channel_mode", "right") %}
+          :host {
+            display: none;
+          }
+          {% endif %}
+        entity_id: input_text.potager_manuel_right_start
+        value_attribute: state
+        input_type: time
+        icon: mdi:clock-start
+        label: Debut D
+        tap_action:
+          action: perform-action
+          perform_action: input_text.set_value
+          target:
+            entity_id: input_text.potager_manuel_right_start
+          data:
+            value: '{{ value }}'
+      - type: input
+        styles: |-
+          {% if not is_state("input_select.potager_manuel_channel_mode", "left") %}
+          :host {
+            display: none;
+          }
+          {% endif %}
+        entity_id: input_text.potager_manuel_left_end
+        value_attribute: state
+        input_type: time
+        icon: mdi:clock-end
+        label: Fin G
+        tap_action:
+          action: perform-action
+          perform_action: input_text.set_value
+          target:
+            entity_id: input_text.potager_manuel_left_end
+          data:
+            value: '{{ value }}'
+      - type: input
+        styles: |-
+          {% if not is_state("input_select.potager_manuel_channel_mode", "right") %}
+          :host {
+            display: none;
+          }
+          {% endif %}
+        entity_id: input_text.potager_manuel_right_end
+        value_attribute: state
+        input_type: time
+        icon: mdi:clock-end
+        label: Fin D
+        tap_action:
+          action: perform-action
+          perform_action: input_text.set_value
+          target:
+            entity_id: input_text.potager_manuel_right_end
+          data:
+            value: '{{ value }}'
+    styles: |-
+      {% if not is_state("input_select.potager_state_target", "manuel") %}
+      :host {
+        display: none;
+      }
+      {% endif %}
+
+  - type: custom:service-call
+    entries:
+      - type: selector
+        entity_id: input_select.potager_preset_target
+        value_attribute: state
+        options:
+          - option: "off"
+            icon: mdi:power
+            label: "off"
+            entity_id: input_select.potager_preset_target
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: script.turn_on
+              target:
+                entity_id: script.potager_preset_off
+          - option: photo
+            icon: mdi:camera
+            label: Photo
+            entity_id: input_select.potager_preset_target
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: script.turn_on
+              target:
+                entity_id: script.potager_preset_photo
+          - option: faible
+            icon: mdi:brightness-5
+            label: Faible
+            entity_id: input_select.potager_preset_target
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: script.turn_on
+              target:
+                entity_id: script.potager_preset_faible
+          - option: printemps
+            icon: mdi:flower
+            label: Printemps
+            entity_id: input_select.potager_preset_target
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: script.turn_on
+              target:
+                entity_id: script.potager_preset_printemps
+          - option: ete
+            icon: mdi:sun-wireless
+            label: Ete
+            entity_id: input_select.potager_preset_target
+            type: button
+            value_attribute: state
+            tap_action:
+              action: perform-action
+              perform_action: script.turn_on
+              target:
+                entity_id: script.potager_preset_ete
+    styles: |-
+      {% if not is_state("input_select.potager_state_target", "preset") %}
+      :host {
+        display: none;
+      }
+      {% endif %}
