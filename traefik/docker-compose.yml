@@ -68,7 +68,9 @@ services:
       - "traefik.http.routers.homeassistant.tls.certresolver=leresolver"
       - "traefik.http.routers.homeassistant.service=homeassistant"
       - "traefik.http.services.homeassistant.loadbalancer.server.url=http://192.168.150.10:8123"
-      - "traefik.http.services.homeassistant.loadbalancer.passhostheader=false"
+      # Preserve the public Host header so Home Assistant generates correct
+      # OAuth/MCP callback and discovery URLs.
+      - "traefik.http.services.homeassistant.loadbalancer.passhostheader=true"
       
       # Cockpit redirigé vers 192.168.1.152:9090
       - "traefik.http.routers.cockpit.rule=Host(`cockpit.doudou.house`)"
