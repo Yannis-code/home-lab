@@ -1,0 +1,7 @@
+
+# List of available commands
+default:
+	@just --list
+
+compose-up:
+    @docker-compose -f docker-compose.yml up -d
