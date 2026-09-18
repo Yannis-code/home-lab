@@ -34,6 +34,7 @@ h1 { max-width: 720px; margin: 0; font-size: 4.5rem; font-weight: 400; line-heig
 .status-badge.public { color: #d8f0e7; background: #27604d; }
 .status-badge.integrated { color: #18200f; background: var(--accent); }
 .status-badge.basic { color: #f8e4e4; background: #8d3b4a; }
+.status-badge.sso { color: #e4faff; background: #246878; border: 1px solid #55b8c8; }
 .arrow { align-self: flex-end; color: var(--accent); font: 1.5rem/1 system-ui, sans-serif; }
 .empty, footer { color: var(--muted); font: 0.9rem system-ui, sans-serif; }
 footer { margin-top: 34px; font-size: 0.78rem; }

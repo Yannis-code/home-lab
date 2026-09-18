@@ -4,7 +4,8 @@ include:
   - ./bento-pdf/docker-compose.yml
   - ./vert/docker-compose.yml
   - ./portal/docker-compose.yml
-    
+  - ./sso/docker-compose.yml
+
 #networks:
   #proxy:
     #name: proxy

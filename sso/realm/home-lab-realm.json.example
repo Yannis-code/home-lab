@@ -1,0 +1,21 @@
+{
+  "realm": "home-lab",
+  "enabled": true,
+  "displayName": "Home Lab",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "clients": [
+    {
+      "clientId": "home-lab-sso",
+      "name": "Home Lab SSO",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "change-me-client-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["https://auth.doudou.house/oauth2/callback"],
+      "webOrigins": ["https://auth.doudou.house"]
+    }
+  ]
+}

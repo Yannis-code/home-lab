@@ -24,6 +24,11 @@ export class ServiceCardComponent {
   readonly route = input.required<ServiceRoute>();
 
   authLabel(method: string): string {
-    return { basic: 'Basic auth', integrated: 'Auth intégrée', public: 'Public' }[method] ?? method;
+    return {
+      basic: 'Basic auth',
+      integrated: 'App Auth',
+      public: 'Public',
+      sso: 'SSO',
+    }[method] ?? method;
   }
 }

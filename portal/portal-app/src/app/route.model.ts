@@ -1,4 +1,4 @@
-export type AuthMethod = 'basic' | 'integrated' | 'public';
+export type AuthMethod = 'basic' | 'integrated' | 'public' | 'sso';
 
 export interface ServiceRoute {
   host: string;

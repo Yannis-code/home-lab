@@ -20,9 +20,11 @@ PORTAL_AUTH_LABEL = re.compile(
 PORTAL_DESCRIPTION_LABEL = re.compile(
     r"^doudou\.portal\.routers\.([^.]+)\.description$"
 )
+PORTAL_EXCLUDE_LABEL = "doudou.portal.exclude"
 BASICAUTH_MIDDLEWARE_LABEL = re.compile(
     r"^traefik\.http\.middlewares\.([^.]+)\.basicauth\."
 )
+SSO_MIDDLEWARE = "sso-chain@docker"
 
 
 def docker_get(path):
@@ -68,6 +70,8 @@ def routes():
 
     for container in containers:
         labels = container.get("Labels", {})
+        if labels.get(PORTAL_EXCLUDE_LABEL, "").strip().lower() == "true":
+            continue
         container_name = container.get("Names", [""])[0].lstrip("/")
         router_middlewares = {
             match.group(1): value
@@ -86,7 +90,7 @@ def routes():
         }
         for label, rule in labels.items():
             match = ROUTER_LABEL.match(label)
-            if not match or match.group(1) == "traefik-home":
+            if not match:
                 continue
             hosts = HOST_PATTERN.findall(rule)
             hosts = [
@@ -97,16 +101,19 @@ def routes():
             ]
             if not hosts:
                 continue
-            if match.group(1) == "home" and "doudou.house" in hosts:
-                continue
             paths = PATH_PATTERN.findall(rule)
             path = next((value for value in paths if value.startswith("/")), "/")
             middlewares = router_middlewares.get(match.group(1), "").split(",")
+            has_sso = any(
+                middleware.strip() == SSO_MIDDLEWARE for middleware in middlewares
+            )
             has_basic_auth = any(
                 middleware.split("@", 1)[0].strip() in basic_auth_middlewares
                 for middleware in middlewares
             )
             auth_methods = set()
+            if has_sso:
+                auth_methods.add("sso")
             if router_auth.get(match.group(1)) == "integrated":
                 auth_methods.add("integrated")
             if has_basic_auth:

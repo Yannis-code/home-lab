@@ -1,0 +1,101 @@
+services:
+  keycloak-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: "${KEYCLOAK_DB_PASSWORD:?KEYCLOAK_DB_PASSWORD is required}"
+    volumes:
+      - keycloak_db:/var/lib/postgresql/data
+    networks:
+      - sso
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3
+    restart: unless-stopped
+    command: ["start-dev", "--import-realm"]
+    depends_on:
+      - keycloak-db
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: "${KEYCLOAK_DB_PASSWORD:?KEYCLOAK_DB_PASSWORD is required}"
+      KC_BOOTSTRAP_ADMIN_USERNAME: "${KEYCLOAK_ADMIN_USERNAME:?KEYCLOAK_ADMIN_USERNAME is required}"
+      KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD:?KEYCLOAK_ADMIN_PASSWORD is required}"
+      KC_HOSTNAME: "${KEYCLOAK_HOST:-sso.doudou.house}"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: "true"
+    volumes:
+      - ./realm:/opt/keycloak/data/import:ro
+    networks:
+      - proxy
+      - sso
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.keycloak.rule=Host(`${KEYCLOAK_HOST:-sso.doudou.house}`)"
+      - "traefik.http.routers.keycloak.entrypoints=websecure"
+      - "traefik.http.routers.keycloak.tls.certresolver=leresolver"
+      - "doudou.portal.exclude=true"
+      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.12.0
+    restart: unless-stopped
+    depends_on:
+      - keycloak
+    environment:
+      OAUTH2_PROXY_PROVIDER: keycloak-oidc
+      OAUTH2_PROXY_OIDC_ISSUER_URL: "https://${KEYCLOAK_HOST:-sso.doudou.house}/realms/home-lab"
+      OAUTH2_PROXY_CLIENT_ID: home-lab-sso
+      OAUTH2_PROXY_CLIENT_SECRET: "${OAUTH2_PROXY_CLIENT_SECRET:?OAUTH2_PROXY_CLIENT_SECRET is required}"
+      OAUTH2_PROXY_REDIRECT_URL: "https://${OAUTH2_PROXY_HOST:-auth.doudou.house}/oauth2/callback"
+      OAUTH2_PROXY_COOKIE_SECRET: "${OAUTH2_PROXY_COOKIE_SECRET:?OAUTH2_PROXY_COOKIE_SECRET is required}"
+      OAUTH2_PROXY_COOKIE_SECURE: "true"
+      OAUTH2_PROXY_COOKIE_DOMAINS: ".doudou.house"
+      OAUTH2_PROXY_WHITELIST_DOMAINS: ".doudou.house"
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+      OAUTH2_PROXY_REVERSE_PROXY: "true"
+      OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
+      OAUTH2_PROXY_PASS_ACCESS_TOKEN: "true"
+      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
+      OAUTH2_PROXY_UPSTREAMS: static://202
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.oauth2-proxy.rule=Host(`${OAUTH2_PROXY_HOST:-auth.doudou.house}`)"
+      - "traefik.http.routers.oauth2-proxy.entrypoints=websecure"
+      - "traefik.http.routers.oauth2-proxy.tls.certresolver=leresolver"
+      - "doudou.portal.exclude=true"
+      - "traefik.http.services.oauth2-proxy.loadbalancer.server.port=4180"
+      - "traefik.http.middlewares.sso-forwardauth.forwardauth.address=http://sso-auth-redirect:8080/auth"
+      - "traefik.http.middlewares.sso-forwardauth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.sso-forwardauth.forwardauth.authResponseHeaders=X-Auth-Request-User,X-Auth-Request-Email,X-Auth-Request-Access-Token"
+      - "traefik.http.middlewares.sso-chain.chain.middlewares=sso-forwardauth"
+
+  sso-auth-redirect:
+    image: python:3.13-alpine
+    restart: unless-stopped
+    environment:
+      OAUTH2_PROXY_HOST: "${OAUTH2_PROXY_HOST:-auth.doudou.house}"
+    volumes:
+      - ./auth-redirect.py:/app/auth-redirect.py:ro
+    command: ["python", "/app/auth-redirect.py"]
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=false"
+      - "doudou.portal.exclude=true"
+
+networks:
+  proxy:
+    external: true
+  sso:
+
+volumes:
+  keycloak_db:

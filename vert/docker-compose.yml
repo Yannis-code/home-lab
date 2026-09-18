@@ -13,7 +13,7 @@ services:
       - "traefik.http.routers.vert.rule=Host(`${VERT_WEB_HOST:-vert.doudou.house}`)"
       - "traefik.http.routers.vert.entrypoints=websecure"
       - "traefik.http.routers.vert.tls.certresolver=leresolver"
-      - "traefik.http.routers.vert.middlewares=auth"
+      - "traefik.http.routers.vert.middlewares=sso-chain@docker"
       - "doudou.portal.routers.vert.description=File conversion"
       - "traefik.http.services.vert.loadbalancer.server.port=80"
 
