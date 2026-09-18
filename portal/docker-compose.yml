@@ -1,0 +1,25 @@
+services:
+  portal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: home-lab-portal:latest
+    restart: unless-stopped
+    networks:
+      - proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    expose:
+      - "8080"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.portal.rule=Host(`doudou.house`)"
+      - "traefik.http.routers.portal.entrypoints=websecure"
+      - "traefik.http.routers.portal.tls.certresolver=leresolver"
+      - "doudou.portal.routers.portal.description=Home lab service portal"
+      - "traefik.http.services.portal.loadbalancer.server.port=8080"
+
+networks:
+  proxy:
+    external: true

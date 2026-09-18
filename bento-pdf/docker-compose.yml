@@ -15,6 +15,7 @@ services:
       - "traefik.http.routers.bento-pdf.entrypoints=websecure"
       - "traefik.http.routers.bento-pdf.tls.certresolver=leresolver"
       - "traefik.http.routers.bento-pdf.middlewares=auth"
+      - "doudou.portal.routers.bento-pdf.description=PDF tools"
       - "traefik.http.services.bento-pdf.loadbalancer.server.port=8080"
       # echo -n "user:$(openssl passwd -apr1 'password') >> .htpasswd"
 

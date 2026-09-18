@@ -3,6 +3,7 @@ include:
   - ./pret-a-pousser/docker-compose.yml
   - ./bento-pdf/docker-compose.yml
   - ./vert/docker-compose.yml
+  - ./portal/docker-compose.yml
     
 #networks:
   #proxy:

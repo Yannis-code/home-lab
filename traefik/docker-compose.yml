@@ -59,24 +59,29 @@ services:
       - "traefik.http.routers.dashboard.tls.certresolver=leresolver"
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.middlewares=auth"
+      - "doudou.portal.routers.dashboard.description=Traefik dashboard and routing status"
       - "traefik.http.middlewares.auth.basicauth.usersfile=/etc/traefik/.htpasswd"
       # echo -n "user:$(openssl passwd -apr1 'password') >> .htpasswd"
-      
+
       # Home Assistant redirige vers 192.168.150.10:8123 (NIC de management NAT)
       - "traefik.http.routers.homeassistant.rule=Host(`home-assistant.doudou.house`)"
       - "traefik.http.routers.homeassistant.entrypoints=websecure"
       - "traefik.http.routers.homeassistant.tls.certresolver=leresolver"
       - "traefik.http.routers.homeassistant.service=homeassistant"
+      - "doudou.portal.routers.homeassistant.auth=integrated"
+      - "doudou.portal.routers.homeassistant.description=Home automation and control"
       - "traefik.http.services.homeassistant.loadbalancer.server.url=http://192.168.150.10:8123"
       # Preserve the public Host header so Home Assistant generates correct
       # OAuth/MCP callback and discovery URLs.
       - "traefik.http.services.homeassistant.loadbalancer.passhostheader=true"
-      
+
       # Cockpit redirigé vers 192.168.1.152:9090
       - "traefik.http.routers.cockpit.rule=Host(`cockpit.doudou.house`)"
       - "traefik.http.routers.cockpit.entrypoints=websecure"
       - "traefik.http.routers.cockpit.tls.certresolver=leresolver"
       - "traefik.http.routers.cockpit.service=cockpit"
+      - "doudou.portal.routers.cockpit.auth=integrated"
+      - "doudou.portal.routers.cockpit.description=Host administration and virtual machines"
       - "traefik.http.services.cockpit.loadbalancer.server.url=https://192.168.1.152:9090"
 
 volumes:

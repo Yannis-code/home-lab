@@ -14,6 +14,7 @@ services:
       - "traefik.http.routers.vert.entrypoints=websecure"
       - "traefik.http.routers.vert.tls.certresolver=leresolver"
       - "traefik.http.routers.vert.middlewares=auth"
+      - "doudou.portal.routers.vert.description=File conversion"
       - "traefik.http.services.vert.loadbalancer.server.port=80"
 
 networks:
