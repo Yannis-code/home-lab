@@ -1,0 +1,16 @@
+http:
+  serversTransports:
+    cockpit-insecure:
+      insecureSkipVerify: true
+
+  middlewares:
+    waf:
+      plugin:
+        coraza:
+          directives:
+            - SecRuleEngine On
+            - 'SecDefaultAction "phase:1,log,deny,status:403"'
+            - 'SecDefaultAction "phase:2,log,deny,status:403"'
+            - 'SecRule REQUEST_URI "@rx (?i)(?:/\\.env|/\\.git|/wp-admin|/etc/passwd)" "id:1001,phase:1,log,deny,status:403"'
+            - 'SecRule ARGS "@detectSQLi" "id:1002,phase:2,log,deny,status:403"'
+            - 'SecRule ARGS "@detectXSS" "id:1003,phase:2,log,deny,status:403"'

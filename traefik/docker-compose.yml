@@ -15,8 +15,11 @@ services:
       - "--providers.docker"
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=proxy"
-      - "--serversTransport.insecureSkipVerify=true"
-      - "--log.level=DEBUG"
+      - "--providers.file.filename=/etc/traefik/dynamic.yml"
+      - "--experimental.plugins.coraza.moduleName=github.com/jcchavezs/coraza-http-wasm-traefik"
+      - "--experimental.plugins.coraza.version=v0.3.0"
+      - "--entrypoints.websecure.http.middlewares=waf@file"
+      - "--log.level=INFO"
 
       # API & Dashboard
       - "--api.dashboard=true"
@@ -40,6 +43,7 @@ services:
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "letsencrypt:/letsencrypt"
+      - "./dynamic.yml:/etc/traefik/dynamic.yml:ro"
 
     labels:
       - "traefik.enable=true"
@@ -77,9 +81,11 @@ services:
       - "traefik.http.routers.cockpit.entrypoints=websecure"
       - "traefik.http.routers.cockpit.tls.certresolver=leresolver"
       - "traefik.http.routers.cockpit.service=cockpit"
+      - "traefik.http.routers.cockpit.middlewares=sso-chain@docker"
       - "doudou.portal.routers.cockpit.auth=integrated"
       - "doudou.portal.routers.cockpit.description=Host administration and virtual machines"
       - "traefik.http.services.cockpit.loadbalancer.server.url=https://192.168.1.152:9090"
+      - "traefik.http.services.cockpit.loadbalancer.serverstransport=cockpit-insecure@file"
 
 volumes:
   letsencrypt:
