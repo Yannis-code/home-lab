@@ -1,11 +1,13 @@
 import json
+import os
 import re
 import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import urlparse
 
 
-DOCKER_SOCKET = "/var/run/docker.sock"
+DOCKER_HOST = os.getenv("DOCKER_HOST", "unix:///var/run/docker.sock")
 DIST_DIR = Path("/app/dist")
 DOMAIN_SUFFIX = ".doudou.house"
 HOST_PATTERN = re.compile(r"Host\(\s*`([^`]+)`\s*\)")
@@ -33,9 +35,21 @@ def docker_get(path):
         "Host: docker\r\n"
         "Connection: close\r\n\r\n"
     ).encode()
-    client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    parsed_host = urlparse(DOCKER_HOST)
+    if parsed_host.scheme == "unix":
+        client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        address = parsed_host.path
+    elif parsed_host.scheme == "tcp" and parsed_host.hostname and parsed_host.port:
+        client = socket.create_connection(
+            (parsed_host.hostname, parsed_host.port), timeout=5
+        )
+        address = None
+    else:
+        raise ValueError("DOCKER_HOST must be unix:// or tcp://")
     try:
-        client.connect(DOCKER_SOCKET)
+        if address is not None:
+            client.settimeout(5)
+            client.connect(address)
         client.sendall(request)
         response = b""
         while chunk := client.recv(65536):

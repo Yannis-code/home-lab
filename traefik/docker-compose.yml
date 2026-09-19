@@ -6,13 +6,15 @@ services:
     pull_policy: always
     networks:
       - proxy
+    depends_on:
+      - docker-socket-proxy
     command:
       # Entrypoints HTTP + HTTPS
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
 
       # Providers
-      - "--providers.docker"
+      - "--providers.docker.endpoint=tcp://docker-socket-proxy:2375"
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=proxy"
       - "--providers.file.filename=/etc/traefik/dynamic.yml"
@@ -41,7 +43,6 @@ services:
       - "443:443"
 
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "letsencrypt:/letsencrypt"
       - "./dynamic.yml:/etc/traefik/dynamic.yml:ro"
 
