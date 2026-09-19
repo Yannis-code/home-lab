@@ -20,6 +20,7 @@ services:
       - "traefik.http.routers.portal.rule=Host(`doudou.house`)"
       - "traefik.http.routers.portal.entrypoints=websecure"
       - "traefik.http.routers.portal.tls.certresolver=leresolver"
+      - "traefik.http.routers.portal.middlewares=waf@file"
       - "doudou.portal.exclude=true"
       - "doudou.portal.routers.portal.description=Home lab service portal"
       - "traefik.http.services.portal.loadbalancer.server.port=8080"

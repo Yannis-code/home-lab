@@ -46,6 +46,7 @@ services:
       - "traefik.http.routers.potager-mqtt-web.rule=Host(`${MQTT_WEB_HOST:-mqtt.doudou.house}`)"
       - "traefik.http.routers.potager-mqtt-web.entrypoints=websecure"
       - "traefik.http.routers.potager-mqtt-web.tls.certresolver=leresolver"
+      - "traefik.http.routers.potager-mqtt-web.middlewares=waf@file"
       - "doudou.portal.routers.potager-mqtt-web.auth=integrated"
       - "doudou.portal.routers.potager-mqtt-web.description=MQTT message bus explorer"
       - "traefik.http.services.potager-mqtt-web.loadbalancer.server.port=3000"
