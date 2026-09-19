@@ -6,6 +6,7 @@ services:
     pull_policy: always
     networks:
       - proxy
+      - docker-control
     depends_on:
       - docker-socket-proxy
     command:
