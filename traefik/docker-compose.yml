@@ -1,7 +1,7 @@
 services:
   traefik:
     container_name: traefik
-    image: "traefik:3.6.8"
+    image: "traefik@sha256:90099f8948c828ecf0ababd711a4359a2443eba12261c1df2f548a3b1d815938"
     restart: always
     pull_policy: always
     networks:

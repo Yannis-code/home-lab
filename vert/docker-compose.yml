@@ -1,7 +1,7 @@
 services:
   vert:
     container_name: vert
-    image: ghcr.io/vert-sh/vert:latest
+    image: ghcr.io/vert-sh/vert@sha256:6492f2a88e977e7ce82fd26f49028a17575fee8cac38604f585bc5773298cbc8
     expose:
       - '80'
     restart: unless-stopped

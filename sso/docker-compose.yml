@@ -1,6 +1,6 @@
 services:
   keycloak-db:
-    image: postgres:16-alpine
+    image: postgres@sha256:3c5c8892d184f738f4fe282d14ddaa613a38f00f4189d2d94725ebe6f2909ddb
     restart: unless-stopped
     environment:
       POSTGRES_DB: keycloak
@@ -14,7 +14,7 @@ services:
       - sso
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.3
+    image: quay.io/keycloak/keycloak@sha256:357829ec7c4693397533035092ad13b0644bcc95ded311f33a3738c4d9e9bdba
     restart: unless-stopped
     entrypoint: ["/bin/bash", "/usr/local/bin/keycloak-entrypoint"]
     command: ["start", "--import-realm"]
@@ -54,7 +54,7 @@ services:
       - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
 
   oauth2-proxy:
-    image: quay.io/oauth2-proxy/oauth2-proxy:v7.12.0
+    image: quay.io/oauth2-proxy/oauth2-proxy@sha256:786bed0f000c0f8a7b31619244ebab02406a8856a4faf3f5fb1df61fbd6c30ed
     restart: unless-stopped
     depends_on:
       keycloak:
@@ -96,7 +96,7 @@ services:
       - "traefik.http.middlewares.sso-chain.chain.middlewares=sso-forwardauth"
 
   sso-auth-redirect:
-    image: python:3.13-alpine
+    image: python@sha256:1a63a53928ce53d2b0baf08092a703f4840ac5dfbd61fd48802dbf48e08c801e
     restart: unless-stopped
     environment:
       OAUTH2_PROXY_HOST: "${OAUTH2_PROXY_HOST:-auth.doudou.house}"

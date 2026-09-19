@@ -29,7 +29,7 @@ services:
       - "daemon"
 
   mqtt-web-client:
-    image: ghcr.io/thomasnordquist/mqtt-explorer:latest
+    image: ghcr.io/thomasnordquist/mqtt-explorer@sha256:5850f9b212fcd0d5f1f95eeb7b90209e189781f714660f7d06cb9b003e3028c1
     restart: unless-stopped
     environment:
       MQTT_EXPLORER_USERNAME: "${MQTT_EXPLORER_USERNAME:-admin}"
