@@ -5,7 +5,6 @@ services:
       context: .
       dockerfile: Dockerfile
     network_mode: host
-    privileged: true
     user: "0:0"
     restart: unless-stopped
     environment:
