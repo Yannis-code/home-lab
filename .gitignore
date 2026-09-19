@@ -7,6 +7,7 @@ haos/config/terraform.tfvars
 haos/iac/*.tfplan
 cockpit/config/cockpit-machines.conf
 .env
+sso/secrets/
 
 # Python cache and compiled files
 __pycache__/

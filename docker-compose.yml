@@ -31,3 +31,13 @@ services:
       - docker-control
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+
+secrets:
+  keycloak_db_password:
+    file: ./sso/secrets/keycloak_db_password
+  keycloak_admin_password:
+    file: ./sso/secrets/keycloak_admin_password
+  oauth2_proxy_client_secret:
+    file: ./sso/secrets/oauth2_proxy_client_secret
+  oauth2_proxy_cookie_secret:
+    file: ./sso/secrets/oauth2_proxy_cookie_secret
