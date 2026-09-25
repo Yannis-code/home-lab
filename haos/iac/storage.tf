@@ -47,14 +47,23 @@ resource "null_resource" "resize_haos_disk" {
     command = <<-EOT
       set -euo pipefail
       vol_path="$(virsh -c "${var.libvirt_uri}" vol-path --pool "${var.storage_pool_name}" "${libvirt_volume.haos_disk.name}")"
-      current_size="$(qemu-img info --output=json "$vol_path" | sed -nE 's/^[[:space:]]*"virtual-size"[[:space:]]*:[[:space:]]*([0-9]+),?$/\1/p' | tail -n1)"
+      domain_state="$(LC_ALL=C virsh -c "${var.libvirt_uri}" domstate "${var.vm_name}")"
+      if [[ "$domain_state" == "running" ]]; then
+        current_size="$(LC_ALL=C virsh -c "${var.libvirt_uri}" domblkinfo "${var.vm_name}" vda | awk '/Capacity:/ {print $2}')"
+      else
+        current_size="$(qemu-img info --output=json "$vol_path" | sed -nE 's/^[[:space:]]*"virtual-size"[[:space:]]*:[[:space:]]*([0-9]+),?$/\1/p' | tail -n1)"
+      fi
       requested_size="${var.vm_disk_size_bytes}"
       if [[ -z "$current_size" ]]; then
         echo "Unable to detect current volume size for $vol_path" >&2
         exit 1
       fi
       if (( requested_size > current_size )); then
-        qemu-img resize "$vol_path" "$requested_size" >/dev/null
+        if [[ "$domain_state" == "running" ]]; then
+          virsh -c "${var.libvirt_uri}" blockresize "${var.vm_name}" vda "$requested_size" >/dev/null
+        else
+          qemu-img resize "$vol_path" "$requested_size" >/dev/null
+        fi
       fi
     EOT
   }
