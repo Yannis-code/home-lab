@@ -1,0 +1,13 @@
+{
+  "reporter": ["text", "html", "lcov"],
+  "report-dir": "./coverage",
+  "temp-dir": "./.nyc_output",
+  "check-coverage": true,
+  "lines": 100,
+  "statements": 100,
+  "functions": 100,
+  "branches": 100,
+  "include": ["src/**/*.ts", "src/**/*.vue"],
+  "extension": [".ts", ".vue"],
+  "exclude": ["src/types.ts", "src/vite-env.d.ts"]
+}
