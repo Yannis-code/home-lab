@@ -1,0 +1,19 @@
+{
+  "name": "Covoit",
+  "short_name": "Covoit",
+  "description": "Groupes de covoiturage, trajets et frais partagés",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

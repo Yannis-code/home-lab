@@ -1,0 +1,32 @@
+[project]
+name = "covoit"
+version = "0.1.0"
+description = "Application de covoiturage: groupes, trajets et frais partagés"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115,<1.0",
+  "uvicorn[standard]>=0.30,<1.0",
+  "sqlmodel>=0.0.22,<1.0",
+  "bcrypt>=4.1,<5.0",
+  "email-validator>=2.1,<3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0,<9.0",
+  "httpx2>=2.13,<3.0",
+]
+
+[project.scripts]
+covoit-serve = "covoit.main:run"
+
+[build-system]
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
