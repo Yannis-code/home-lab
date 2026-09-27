@@ -5,6 +5,7 @@ include:
   - ./vert/docker-compose.yml
   - ./portal/docker-compose.yml
   - ./sso/docker-compose.yml
+  - ./covoit/docker-compose.yml
 
 #networks:
   #proxy:

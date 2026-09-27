@@ -1,0 +1,49 @@
+services:
+  covoit-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: covoit-backend:latest
+    restart: unless-stopped
+    networks:
+      - covoit-internal
+    volumes:
+      - covoit_data:/data
+    environment:
+      COVOIT_ADMIN_NAME: "${COVOIT_ADMIN_NAME:-Administrateur}"
+      COVOIT_ADMIN_EMAIL: "${COVOIT_ADMIN_EMAIL:-admin@covoit.home}"
+      COVOIT_ADMIN_PASSWORD: "${COVOIT_ADMIN_PASSWORD:-}"
+      COVOIT_SESSION_TTL_HOURS: "${COVOIT_SESSION_TTL_HOURS:-168}"
+
+  covoit-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: covoit-frontend:latest
+    restart: unless-stopped
+    depends_on:
+      - covoit-backend
+    networks:
+      - proxy
+      - covoit-internal
+    expose:
+      - "80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.covoit.rule=Host(`${COVOIT_HOST:-covoit.doudou.house}`)"
+      - "traefik.http.routers.covoit.entrypoints=websecure"
+      - "traefik.http.routers.covoit.tls.certresolver=leresolver"
+      - "traefik.http.routers.covoit.middlewares=waf@file"
+      - "doudou.portal.routers.covoit.auth=integrated"
+      - "doudou.portal.routers.covoit.description=Covoiturage: groupes, trajets et frais partagés"
+      - "traefik.http.services.covoit.loadbalancer.server.port=80"
+
+networks:
+  proxy:
+    external: true
+  covoit-internal:
+    internal: true
+
+volumes:
+  covoit_data:
